@@ -78,10 +78,30 @@
   .genbtn{margin-top:2px;background:var(--accent);color:#fff;border:0;border-radius:6px;padding:10px;font-weight:bold;cursor:pointer;font-size:13px}
   .genbtn.share{background:var(--good)}
 
-  /* ---------- CAR PANEL BOXES ---------- */
+  /* ---------- CAR PANEL DIAGRAM (tap a panel to open its form) ---------- */
   h2.sec{font-size:13px;margin:4px 2px 8px;color:#444;text-transform:uppercase;letter-spacing:.5px}
-  .car{display:grid;grid-template-columns:1.3fr 0.42fr 1.56fr 0.42fr 1.3fr;grid-template-rows:122px 172px 172px 122px;gap:8px;align-items:stretch}
-  .panel{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;min-height:104px;min-width:0}
+  .car-img-wrap{position:relative;width:100%;max-width:520px;margin:0 auto;aspect-ratio:705/630;
+    background-image:url('data:image/png;base64,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');background-size:100% 100%;background-repeat:no-repeat;
+    -webkit-user-select:none;user-select:none}
+  .hotspot{position:absolute;padding:0;margin:0;border:2px solid transparent;border-radius:10px;background:transparent;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+  .hotspot:active{background:rgba(21,101,192,.10)}
+  .hotspot.filled{border-color:var(--accent);background:rgba(21,101,192,.10)}
+  .hotspot-badge{background:#fff;border:1px solid var(--accent);color:var(--accent);font-weight:bold;
+    font-size:11px;border-radius:20px;padding:2px 7px;box-shadow:0 1px 3px rgba(0,0,0,.25);white-space:nowrap}
+  .hotspot-badge:empty{display:none}   /* no pill on panels with no dents yet */
+  @media (max-width:640px){ .hotspot-badge{font-size:10px;padding:1px 5px} }
+
+  /* ---------- per-panel detail modal ---------- */
+  .panel-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:120;align-items:flex-end;justify-content:center}
+  .panel-modal-overlay.show{display:flex}
+  .panel-modal-box{background:#fff;border-radius:14px 14px 0 0;width:100%;max-width:480px;max-height:88vh;overflow:auto;padding:14px}
+  .panel-modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+  .panel-modal-head span{font-weight:bold;font-size:15px}
+  .panel-modal-done{border:0;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:bold;cursor:pointer;background:var(--good);color:#fff}
+
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px;display:none;flex-direction:column;gap:6px;min-height:104px;min-width:0}
+  .panel.open{display:flex}
   .panel.thin{background:#fafafa}
   .panel.thin .row{flex-direction:column}          /* Qty above Size, each full width */
   .panel.thin .chkrow{flex-direction:column;align-items:flex-start;gap:6px;flex-wrap:nowrap}
@@ -108,18 +128,6 @@
   .camicon{margin-left:auto;border:1px solid var(--line);background:#fff;border-radius:6px;padding:1px 7px;font-size:14px;cursor:pointer;line-height:1.4}
   .camicon.has{border-color:var(--good);background:#e7f5ec}
 
-  .p7{grid-column:1;grid-row:1}.p1{grid-column:3;grid-row:1}.p11{grid-column:5;grid-row:1}
-  .p8{grid-column:1;grid-row:2}.p5{grid-column:2;grid-row:2 / span 2}.p6{grid-column:4;grid-row:2 / span 2}.p12{grid-column:5;grid-row:2}
-  .p9{grid-column:1;grid-row:3}.p13{grid-column:5;grid-row:3}
-  .p10{grid-column:1;grid-row:4}.p14{grid-column:5;grid-row:4}
-  .p8,.p9,.p12,.p13{min-height:172px}   /* doors taller; Dachrahmen 5/6 span these so they follow */
-  .p10,.p14{min-height:0}               /* rear quarter panels reduced */
-
-  /* center column stack: Haube / Dach (taller) / Heckklappe oben+unten (shorter) */
-  .center-col{grid-column:3;grid-row:1 / span 4;display:flex;flex-direction:column;gap:8px;min-width:0}
-  .center-col .panel{flex:0 0 auto}      /* natural height — never shrink below content */
-  .center-col .p1{min-height:138px}      /* Haube — taller */
-  .center-col .p2{min-height:180px}      /* Dach — extended taller */
 
   /* ---------- BOTTOM BAR ---------- */
   .totbar{position:sticky;bottom:0;background:var(--ink);color:#fff;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;font-size:14px;z-index:20;flex-wrap:wrap;gap:8px}
@@ -133,10 +141,6 @@
     .sheet-head{grid-template-columns:1fr}
     .sheet-tables{grid-template-columns:1fr}
     .rates{grid-template-columns:1fr}
-    .car{grid-template-columns:1fr 1fr;grid-template-rows:none}
-    .center-col{display:contents}
-    .car .panel{grid-column:auto !important;grid-row:auto !important}
-    .panel.thin{grid-column:1 / -1 !important}
   }
   @media print{
     .totbar{position:static}.btns,.camicon{display:none}
@@ -216,7 +220,18 @@
   </div>
 
   <!-- ============ PANEL BOXES ============ -->
-  <div class="car" id="car"></div>
+  <div class="car-img-wrap" id="carImgWrap"></div>
+
+  <!-- per-panel form, opened by tapping a panel on the diagram above -->
+  <div class="panel-modal-overlay" id="panelModalOverlay" onclick="closePanelModal()">
+    <div class="panel-modal-box" onclick="event.stopPropagation()">
+      <div class="panel-modal-head">
+        <span id="panelModalTitle"></span>
+        <button type="button" class="panel-modal-done" onclick="closePanelModal()">✓ Fertig</button>
+      </div>
+      <div id="panelModalBody"></div>
+    </div>
+  </div>
 
   <!-- ============ NEBENKOSTEN ============ -->
   <div class="rates-frame">
@@ -242,7 +257,7 @@
 <script>
 // bump this string on every deploy so the Home-Screen icon (which caches aggressively and has
 // no reload button of its own) can detect a newer version is live and prompt to update.
-const APP_VERSION='2026-09-04-04';
+const APP_VERSION='2026-09-04-beta-01';
 const AWDATA={"10":{"H":{"1":{"10":5,"20":6,"30":7,"40":8,"50":9,"60":10,"70":11,"80":12},"2":{"10":6,"20":7,"30":9,"40":10,"50":12,"60":13,"70":15,"80":17},"3":{"10":7,"20":8,"30":10,"40":12,"50":14,"60":16,"70":19,"80":22},"4":{"10":7,"20":9,"30":12,"40":14,"50":17,"60":19,"70":23,"80":27},"5":{"10":8,"20":10,"30":13,"40":16,"50":19,"60":22,"70":27,"80":32},"6":{"10":9,"20":11,"30":15,"40":18,"50":22,"60":25,"70":31,"80":37},"7":{"10":10,"20":12,"30":16,"40":20,"50":24,"60":28,"70":35,"80":42},"8":{"10":10,"20":13,"30":18,"40":22,"50":27,"60":31,"70":39,"80":47},"9":{"10":11,"20":14,"30":19,"40":24,"50":29,"60":34,"70":43,"80":52},"10":{"10":12,"20":15,"30":21,"40":26,"50":32,"60":37,"70":47,"80":57},"13":{"10":13,"20":17,"30":23,"40":29,"50":36,"60":43,"70":55,"80":68},"16":{"10":14,"20":19,"30":25,"40":32,"50":40,"60":48,"70":64,"80":80},"19":{"10":15,"20":20,"30":27,"40":35,"50":44,"60":54,"70":72,"80":91},"22":{"10":16,"20":22,"30":29,"40":37,"50":48,"60":59,"70":79,"80":100},"25":{"10":17,"20":23,"30":30,"40":40,"50":51,"60":64,"70":86,"80":108},"28":{"10":18,"20":24,"30":32,"40":42,"50":54,"60":69,"70":92,"80":116},"31":{"10":19,"20":25,"30":33,"40":44,"50":58,"60":74,"70":98,"80":124},"34":{"10":19,"20":26,"30":35,"40":46,"50":61,"60":78,"70":104,"80":131},"37":{"10":20,"20":27,"30":36,"40":48,"50":64,"60":83,"70":111,"80":139},"40":{"10":21,"20":28,"30":38,"40":50,"50":68,"60":88,"70":117,"80":147},"45":{"10":22,"20":30,"30":40,"40":54,"50":73,"60":96,"70":128,"80":160},"50":{"10":23,"20":32,"30":43,"40":57,"50":79,"60":104,"70":138,"80":173},"55":{"10":25,"20":33,"30":45,"40":61,"50":84,"60":112,"70":149,"80":186},"60":{"10":26,"20":35,"30":48,"40":64,"50":90,"60":120,"70":159,"80":199},"65":{"10":27,"20":37,"30":50,"40":68,"50":95,"60":128,"70":170,"80":212},"70":{"10":28,"20":39,"30":53,"40":71,"50":101,"60":136,"70":180,"80":225},"75":{"10":30,"20":40,"30":55,"40":75,"50":106,"60":144,"70":191,"80":238},"80":{"10":31,"20":42,"30":58,"40":78,"50":112,"60":152,"70":201,"80":251},"85":{"10":32,"20":44,"30":60,"40":82,"50":117,"60":160,"70":212,"80":264},"90":{"10":33,"20":45,"30":63,"40":85,"50":123,"60":168,"70":222,"80":277},"95":{"10":35,"20":47,"30":65,"40":89,"50":128,"60":176,"70":233,"80":290},"100":{"10":36,"20":49,"30":68,"40":92,"50":134,"60":184,"70":243,"80":303},"110":{"10":38,"20":52,"30":73,"40":99,"50":145,"60":200,"70":264,"80":329},"120":{"10":41,"20":56,"30":78,"40":106,"50":156,"60":216,"70":285,"80":355},"130":{"10":43,"20":59,"30":83,"40":113,"50":167,"60":232,"70":306,"80":381},"140":{"10":46,"20":63,"30":88,"40":120,"50":178,"60":248,"70":327,"80":407},"150":{"10":48,"20":67,"30":93,"40":127,"50":189,"60":264,"70":348,"80":433},"160":{"10":51,"20":70,"30":98,"40":134,"50":200,"60":280,"70":369},"170":{"10":53,"20":74,"30":103,"40":141,"50":211,"60":296,"70":390},"180":{"10":56,"20":77,"30":108,"40":148,"50":222,"60":312,"70":411},"190":{"10":58,"20":81,"30":113,"40":155,"50":233,"60":328,"70":432},"200":{"10":61,"20":85,"30":118,"40":162,"50":244,"60":344,"70":453},"210":{"10":63,"20":88,"30":123,"40":169,"50":255,"60":360},"220":{"10":66,"20":92,"30":128,"40":176,"50":266,"60":376},"230":{"10":68,"20":95,"30":133,"40":183,"50":277,"60":392},"240":{"10":71,"20":99,"30":138,"40":190,"50":288,"60":408},"250":{"10":73,"20":103,"30":143,"40":197,"50":299,"60":424},"260":{"10":76,"20":106,"30":148,"40":204,"50":310},"270":{"10":78,"20":110,"30":153,"40":211,"50":321},"280":{"10":81,"20":113,"30":158,"40":218,"50":332},"300":{"10":86,"20":121,"30":168,"40":232,"50":354},"325":{"10":92,"20":130,"30":180,"40":250,"50":381},"350":{"10":98,"20":139,"30":193,"40":267,"50":409},"375":{"10":105,"20":148,"30":205,"40":285,"50":436},"400":{"10":111,"20":157,"30":218,"40":302,"50":464},"425":{"10":117,"20":166,"30":230,"40":320},"450":{"10":123,"20":175,"30":243,"40":337},"475":{"10":130,"20":184,"30":255,"40":355},"500":{"10":136,"20":193,"30":268,"40":372},"525":{"10":142,"20":202,"30":280,"40":390},"550":{"10":148,"20":211,"30":293,"40":407},"575":{"10":155,"20":220,"30":305,"40":425},"600":{"10":161,"20":229,"30":318,"40":442},"650":{"10":173,"20":247,"30":343},"700":{"10":186,"20":265,"30":368},"750":{"10":198,"20":283,"30":393},"800":{"10":211,"20":301,"30":418}},"V":{"1":{"10":5,"20":6,"30":7,"40":9,"50":10,"60":10,"70":11,"80":12},"2":{"10":6,"20":8,"30":9,"40":12,"50":14,"60":14,"70":16,"80":19},"3":{"10":7,"20":9,"30":11,"40":14,"50":17,"60":18,"70":21,"80":25},"4":{"10":8,"20":11,"30":13,"40":17,"50":21,"60":22,"70":26,"80":32},"5":{"10":9,"20":12,"30":15,"40":19,"50":24,"60":26,"70":31,"80":38},"6":{"10":10,"20":13,"30":17,"40":21,"50":27,"60":29,"70":35,"80":43},"7":{"10":11,"20":14,"30":18,"40":23,"50":29,"60":32,"70":38,"80":47},"8":{"10":11,"20":15,"30":20,"40":25,"50":32,"60":35,"70":42,"80":52},"9":{"10":12,"20":16,"30":21,"40":27,"50":34,"60":38,"70":45,"80":56},"10":{"10":13,"20":17,"30":23,"40":29,"50":37,"60":41,"70":49,"80":61},"11":{"10":13,"20":18,"30":24,"40":31,"50":39,"60":44,"70":52,"80":65},"12":{"10":14,"20":19,"30":26,"40":33,"50":42,"60":47,"70":56,"80":69},"13":{"10":14,"20":20,"30":27,"40":35,"50":44,"60":50,"70":59,"80":73},"14":{"10":15,"20":21,"30":29,"40":37,"50":47,"60":53,"70":63,"80":77},"15":{"10":15,"20":22,"30":30,"40":39,"50":49,"60":56,"70":66,"80":81},"16":{"10":16,"20":23,"30":32,"40":41,"50":52,"60":59,"70":70,"80":85},"17":{"10":16,"20":24,"30":33,"40":43,"50":54,"60":62,"70":73,"80":89},"18":{"10":17,"20":25,"30":35,"40":45,"50":57,"60":66,"70":77,"80":93},"19":{"10":17,"20":26,"30":36,"40":47,"50":59,"60":68,"70":80,"80":97},"20":{"10":18,"20":27,"30":38,"40":49,"50":62,"60":71,"70":84,"80":101},"21":{"10":18,"20":28,"30":39,"40":51,"50":64,"60":74,"70":87,"80":105},"22":{"10":19,"20":29,"30":40,"40":52,"50":66,"60":76,"70":90,"80":109},"23":{"10":20,"20":29,"30":41,"40":54,"50":68,"60":79,"70":93,"80":113},"24":{"10":20,"20":30,"30":42,"40":55,"50":70,"60":81,"70":96,"80":117},"25":{"10":21,"20":31,"30":43,"40":57,"50":72,"60":84,"70":99,"80":121},"26":{"10":21,"20":32,"30":44,"40":58,"50":74,"60":86,"70":102,"80":125},"27":{"10":22,"20":32,"30":45,"40":60,"50":76,"60":89,"70":105,"80":129},"28":{"10":22,"20":33,"30":46,"40":61,"50":78,"60":91,"70":108,"80":133},"29":{"10":23,"20":34,"30":47,"40":63,"50":80,"60":94,"70":111,"80":137},"30":{"10":23,"20":35,"30":48,"40":64,"50":82,"60":96,"70":114,"80":141},"31":{"10":23,"20":35,"30":49,"40":66,"50":84,"60":99,"70":117,"80":145},"32":{"10":24,"20":36,"30":50,"40":67,"50":86,"60":101,"70":120,"80":149},"33":{"10":24,"20":37,"30":51,"40":69,"50":88,"60":104,"70":123,"80":153},"34":{"10":25,"20":38,"30":52,"40":70,"50":90,"60":106,"70":126,"80":157},"35":{"10":25,"20":38,"30":53,"40":72,"50":92,"60":109,"70":129,"80":161},"36":{"10":26,"20":39,"30":54,"40":73,"50":94,"60":111,"70":132,"80":165},"37":{"10":26,"20":40,"30":55,"40":75,"50":96,"60":114,"70":135,"80":169},"38":{"10":27,"20":41,"30":56,"40":76,"50":98,"60":116,"70":138,"80":173},"39":{"10":27,"20":41,"30":57,"40":78,"50":100,"60":119,"70":141,"80":177},"40":{"10":28,"20":42,"30":58,"40":79,"50":102,"60":121,"70":144,"80":181},"41":{"10":28,"20":43,"30":59,"40":81,"50":104,"60":124,"70":147,"80":185},"42":{"10":29,"20":44,"30":60,"40":82,"50":106,"60":126,"70":150,"80":189},"43":{"10":29,"20":44,"30":61,"40":84,"50":108,"60":129,"70":153,"80":193},"44":{"10":30,"20":45,"30":62,"40":85,"50":110,"60":131,"70":156,"80":197},"45":{"10":30,"20":46,"30":63,"40":87,"50":112,"60":134,"70":159,"80":201},"46":{"10":31,"20":47,"30":64,"40":88,"50":114,"60":136,"70":162,"80":205},"47":{"10":31,"20":47,"30":65,"40":90,"50":116,"60":139,"70":165,"80":209},"48":{"10":32,"20":48,"30":66,"40":91,"50":118,"60":141,"70":168,"80":213},"49":{"10":32,"20":49,"30":67,"40":93,"50":120,"60":144,"70":171,"80":217},"50":{"10":33,"20":50,"30":68,"40":94,"50":122,"60":146,"70":174,"80":221},"51":{"10":33,"20":50,"30":69,"40":96,"50":124,"60":149,"70":177,"80":225},"52":{"10":34,"20":51,"30":70,"40":97,"50":126,"60":151,"70":180,"80":229},"53":{"10":34,"20":52,"30":71,"40":99,"50":128,"60":154,"70":183,"80":233},"54":{"10":35,"20":53,"30":72,"40":100,"50":130,"60":156,"70":186,"80":237},"55":{"10":35,"20":53,"30":73,"40":102,"50":132,"60":159,"70":189,"80":241},"60":{"10":38,"20":57,"30":78,"40":109,"50":142,"60":171,"70":204,"80":261},"65":{"10":40,"20":61,"30":83,"40":117,"50":152,"60":184,"70":219,"80":281},"70":{"10":43,"20":65,"30":88,"40":124,"50":162,"60":196,"70":234,"80":301},"80":{"10":48,"20":72,"30":98,"40":139,"50":182,"60":221,"70":264,"80":341},"90":{"10":53,"20":80,"30":108,"40":154,"50":202,"60":246,"70":294,"80":381},"100":{"10":58,"20":87,"30":118,"40":169,"50":222,"60":271,"70":324,"80":421},"110":{"10":118,"20":139},"120":{"10":130,"20":149},"130":{"10":142}}},"12":{"H":{"1":{"10":6,"20":7,"30":8,"40":10,"50":11,"60":12,"70":13,"80":14},"2":{"10":7,"20":8,"30":11,"40":12,"50":14,"60":16,"70":18,"80":20},"3":{"10":8,"20":10,"30":12,"40":14,"50":17,"60":19,"70":23,"80":26},"4":{"10":8,"20":11,"30":14,"40":17,"50":20,"60":23,"70":28,"80":32},"5":{"10":10,"20":12,"30":16,"40":19,"50":23,"60":26,"70":32,"80":38},"6":{"10":11,"20":13,"30":18,"40":22,"50":26,"60":30,"70":37,"80":44},"7":{"10":12,"20":14,"30":19,"40":24,"50":29,"60":34,"70":42,"80":50},"8":{"10":12,"20":16,"30":22,"40":26,"50":32,"60":37,"70":47,"80":56},"9":{"10":13,"20":17,"30":23,"40":29,"50":35,"60":41,"70":52,"80":62},"10":{"10":14,"20":18,"30":25,"40":31,"50":38,"60":44,"70":56,"80":68},"13":{"10":16,"20":20,"30":28,"40":35,"50":43,"60":52,"70":66,"80":82},"16":{"10":17,"20":23,"30":30,"40":38,"50":48,"60":58,"70":77,"80":96},"19":{"10":18,"20":24,"30":32,"40":42,"50":53,"60":65,"70":86,"80":109},"22":{"10":19,"20":26,"30":35,"40":44,"50":58,"60":71,"70":95,"80":120},"25":{"10":20,"20":28,"30":36,"40":48,"50":61,"60":77,"70":103,"80":130},"28":{"10":22,"20":29,"30":38,"40":50,"50":65,"60":83,"70":110,"80":139},"31":{"10":23,"20":30,"30":40,"40":53,"50":70,"60":89,"70":118,"80":149},"34":{"10":23,"20":31,"30":42,"40":55,"50":73,"60":94,"70":125,"80":157},"37":{"10":24,"20":32,"30":43,"40":58,"50":77,"60":100,"70":133,"80":167},"40":{"10":25,"20":34,"30":46,"40":60,"50":82,"60":106,"70":140,"80":176},"45":{"10":26,"20":36,"30":48,"40":65,"50":88,"60":115,"70":154,"80":192},"50":{"10":28,"20":38,"30":52,"40":68,"50":95,"60":125,"70":166,"80":208},"55":{"10":30,"20":40,"30":54,"40":73,"50":101,"60":134,"70":179,"80":223},"60":{"10":31,"20":42,"30":58,"40":77,"50":108,"60":144,"70":191,"80":239},"65":{"10":32,"20":44,"30":60,"40":82,"50":114,"60":154,"70":204,"80":254},"70":{"10":34,"20":46,"30":64,"40":85,"50":121,"60":163,"70":216,"80":270},"75":{"10":36,"20":48,"30":66,"40":90,"50":127,"60":173,"70":229,"80":286},"80":{"10":37,"20":50,"30":70,"40":94,"50":134,"60":182,"70":241,"80":301},"85":{"10":38,"20":52,"30":72,"40":98,"50":140,"60":192,"70":254,"80":317},"90":{"10":40,"20":54,"30":76,"40":102,"50":148,"60":202,"70":266,"80":332},"95":{"10":42,"20":56,"30":78,"40":107,"50":154,"60":211,"70":280,"80":348},"100":{"10":43,"20":59,"30":82,"40":110,"50":161,"60":221,"70":292,"80":364},"110":{"10":46,"20":62,"30":88,"40":119,"50":174,"60":240,"70":317,"80":395},"120":{"10":49,"20":67,"30":94,"40":127,"50":187,"60":259,"70":342,"80":426},"130":{"10":52,"20":71,"30":100,"40":136,"50":200,"60":278,"70":367,"80":457},"140":{"10":55,"20":76,"30":106,"40":144,"50":214,"60":298,"70":392,"80":488},"150":{"10":58,"20":80,"30":112,"40":152,"50":227,"60":317,"70":418,"80":520},"160":{"10":61,"20":84,"30":118,"40":161,"50":240,"60":336,"70":443},"170":{"10":64,"20":89,"30":124,"40":169,"50":253,"60":355,"70":468},"180":{"10":67,"20":92,"30":130,"40":178,"50":266,"60":374,"70":493},"190":{"10":70,"20":97,"30":136,"40":186,"50":280,"60":394,"70":518},"200":{"10":73,"20":102,"30":142,"40":194,"50":293,"60":413,"70":544},"210":{"10":76,"20":106,"30":148,"40":203,"50":306,"60":432},"220":{"10":79,"20":110,"30":154,"40":211,"50":319,"60":451},"230":{"10":82,"20":114,"30":160,"40":220,"50":332,"60":470},"240":{"10":85,"20":119,"30":166,"40":228,"50":346,"60":490},"250":{"10":88,"20":124,"30":172,"40":236,"50":359,"60":509},"260":{"10":91,"20":127,"30":178,"40":245,"50":372},"270":{"10":94,"20":132,"30":184,"40":253,"50":385},"280":{"10":97,"20":136,"30":190,"40":262,"50":398},"300":{"10":103,"20":145,"30":202,"40":278,"50":425},"325":{"10":110,"20":156,"30":216,"40":300,"50":457},"350":{"10":118,"20":167,"30":232,"40":320,"50":491},"375":{"10":126,"20":178,"30":246,"40":342,"50":523},"400":{"10":133,"20":188,"30":262,"40":362,"50":577},"425":{"10":140,"20":199,"30":276,"40":384},"450":{"10":148,"20":210,"30":292,"40":404},"475":{"10":156,"20":221,"30":306,"40":426},"500":{"10":163,"20":232,"30":322,"40":446},"525":{"10":170,"20":242,"30":336,"40":468},"550":{"10":178,"20":253,"30":352,"40":488},"575":{"10":186,"20":264,"30":366,"40":510},"600":{"10":193,"20":275,"30":382,"40":530},"650":{"10":208,"20":296,"30":412},"700":{"10":223,"20":318,"30":442},"750":{"10":238,"20":340,"30":472},"800":{"10":253,"20":361,"30":502}},"V":{"1":{"10":6,"20":7,"30":8,"40":11,"50":12,"60":12,"70":13,"80":14},"2":{"10":7,"20":10,"30":11,"40":14,"50":17,"60":17,"70":19,"80":23},"3":{"10":8,"20":11,"30":13,"40":17,"50":20,"60":22,"70":25,"80":30},"4":{"10":10,"20":13,"30":16,"40":20,"50":25,"60":26,"70":31,"80":38},"5":{"10":11,"20":14,"30":18,"40":23,"50":29,"60":31,"70":37,"80":46},"6":{"10":12,"20":16,"30":20,"40":25,"50":32,"60":35,"70":42,"80":52},"7":{"10":13,"20":17,"30":22,"40":28,"50":35,"60":38,"70":46,"80":56},"8":{"10":13,"20":18,"30":24,"40":30,"50":38,"60":42,"70":50,"80":62},"9":{"10":14,"20":19,"30":25,"40":32,"50":41,"60":46,"70":54,"80":67},"10":{"10":16,"20":20,"30":28,"40":35,"50":44,"60":49,"70":59,"80":73},"11":{"10":16,"20":22,"30":29,"40":37,"50":47,"60":53,"70":62,"80":78},"12":{"10":17,"20":23,"30":31,"40":40,"50":50,"60":56,"70":67,"80":83},"13":{"10":17,"20":24,"30":32,"40":42,"50":53,"60":60,"70":71,"80":88},"14":{"10":18,"20":25,"30":35,"40":44,"50":56,"60":64,"70":76,"80":92},"15":{"10":18,"20":26,"30":36,"40":47,"50":59,"60":67,"70":79,"80":97},"16":{"10":19,"20":28,"30":38,"40":49,"50":62,"60":71,"70":84,"80":102},"17":{"10":19,"20":29,"30":40,"40":52,"50":65,"60":74,"70":88,"80":107},"18":{"10":20,"20":30,"30":42,"40":54,"50":68,"60":79,"70":92,"80":111},"19":{"10":20,"20":31,"30":43,"40":56,"50":71,"60":82,"70":96,"80":116},"20":{"10":22,"20":32,"30":46,"40":59,"50":74,"60":85,"70":101,"80":121},"21":{"10":22,"20":34,"30":47,"40":61,"50":77,"60":89,"70":104,"80":126},"22":{"10":23,"20":35,"30":48,"40":62,"50":79,"60":91,"70":108,"80":131},"23":{"10":24,"20":35,"30":49,"40":65,"50":82,"60":95,"70":112,"80":136},"24":{"10":24,"20":36,"30":50,"40":66,"50":84,"60":97,"70":115,"80":140},"25":{"10":25,"20":37,"30":52,"40":68,"50":86,"60":101,"70":119,"80":145},"26":{"10":25,"20":38,"30":53,"40":70,"50":89,"60":103,"70":122,"80":150},"27":{"10":26,"20":38,"30":54,"40":72,"50":91,"60":107,"70":126,"80":155},"28":{"10":26,"20":40,"30":55,"40":73,"50":94,"60":109,"70":130,"80":160},"29":{"10":28,"20":41,"30":56,"40":76,"50":96,"60":113,"70":133,"80":164},"30":{"10":28,"20":42,"30":58,"40":77,"50":98,"60":115,"70":137,"80":169},"31":{"10":28,"20":42,"30":59,"40":79,"50":101,"60":119,"70":140,"80":174},"32":{"10":29,"20":43,"30":60,"40":80,"50":103,"60":121,"70":144,"80":179},"33":{"10":29,"20":44,"30":61,"40":83,"50":106,"60":125,"70":148,"80":184},"34":{"10":30,"20":46,"30":62,"40":84,"50":108,"60":127,"70":151,"80":188},"35":{"10":30,"20":46,"30":64,"40":86,"50":110,"60":131,"70":155,"80":193},"36":{"10":31,"20":47,"30":65,"40":88,"50":113,"60":133,"70":158,"80":198},"37":{"10":31,"20":48,"30":66,"40":90,"50":115,"60":137,"70":162,"80":203},"38":{"10":32,"20":49,"30":67,"40":91,"50":118,"60":139,"70":166,"80":208},"39":{"10":32,"20":49,"30":68,"40":94,"50":120,"60":143,"70":169,"80":212},"40":{"10":34,"20":50,"30":70,"40":95,"50":122,"60":145,"70":173,"80":217},"41":{"10":34,"20":52,"30":71,"40":97,"50":125,"60":149,"70":176,"80":222},"42":{"10":35,"20":53,"30":72,"40":98,"50":127,"60":151,"70":180,"80":227},"43":{"10":35,"20":53,"30":73,"40":101,"50":130,"60":155,"70":184,"80":232},"44":{"10":36,"20":54,"30":74,"40":102,"50":132,"60":157,"70":187,"80":236},"45":{"10":36,"20":55,"30":76,"40":104,"50":134,"60":161,"70":191,"80":241},"46":{"10":37,"20":56,"30":77,"40":106,"50":137,"60":163,"70":194,"80":246},"47":{"10":37,"20":56,"30":78,"40":108,"50":139,"60":167,"70":198,"80":251},"48":{"10":38,"20":58,"30":79,"40":109,"50":142,"60":169,"70":202,"80":256},"49":{"10":38,"20":59,"30":80,"40":112,"50":144,"60":173,"70":205,"80":260},"50":{"10":40,"20":60,"30":82,"40":113,"50":146,"60":175,"70":209,"80":265},"51":{"10":40,"20":60,"30":83,"40":115,"50":149,"60":179,"70":212,"80":270},"52":{"10":40,"20":61,"30":84,"40":116,"50":151,"60":181,"70":216,"80":275},"53":{"10":41,"20":62,"30":85,"40":119,"50":154,"60":185,"70":220,"80":280},"54":{"10":42,"20":64,"30":86,"40":120,"50":156,"60":187,"70":223,"80":284},"55":{"10":42,"20":64,"30":88,"40":122,"50":158,"60":191,"70":227,"80":289},"60":{"10":46,"20":68,"30":94,"40":131,"50":170,"60":205,"70":245,"80":313},"65":{"10":48,"20":73,"30":100,"40":140,"50":182,"60":221,"70":263,"80":337},"70":{"10":52,"20":78,"30":106,"40":149,"50":194,"60":235,"70":281,"80":361},"80":{"10":58,"20":86,"30":118,"40":167,"50":218,"60":265,"70":317,"80":409},"90":{"10":64,"20":96,"30":130,"40":18,"50":242,"60":295,"70":353,"80":457},"100":{"10":70,"20":104,"30":142,"40":203,"50":266,"60":325,"70":389,"80":505}}}};
 
 // [num, css-class, name, thin?]
@@ -352,10 +367,12 @@ const ALWAYS=['ruest','finish','finishmax'];
   });
 })();
 
-// ---- build panel boxes ----
-const car=document.getElementById('car');
-const centerCol=document.createElement('div');   // Haube/Dach/Heck stack (own proportions)
-centerCol.className='center-col';
+// ---- build panel forms (hidden; one is shown at a time in the panel modal) ----
+// Each panel's inputs keep exactly the same ids / data-p attributes as before, so calc(),
+// save()/load(), photo() and the document builders all keep working untouched — the only
+// change is WHERE they live: instead of 14 always-visible boxes in a CSS grid, they sit in
+// a modal and the landing page shows the car diagram image with a tap target per panel.
+const panelBody=document.getElementById('panelModalBody');
 const KLEBEN_ALWAYS=[5,6];   // Dachrahmen L/R — Klebetechnik always applies
 GRID_ORDER.forEach(n=>{
   const [cls,name,thin]=PANELS[n];
@@ -379,9 +396,55 @@ GRID_ORDER.forEach(n=>{
     </div>
     <input id="cam${n}" type="file" accept="image/*" capture="environment" style="display:none" onchange="photo(${n},this)">
   `;
-  ([1,2,3,4].includes(n)?centerCol:car).appendChild(d);
+  panelBody.appendChild(d);
 });
-car.appendChild(centerCol);
+
+// ---- car diagram: one tap target per panel, positioned over the drawing ----
+// Percentages are measured off the diagram image itself (natural size 705 × 630),
+// so they stay correct at any width the image is displayed at.
+const HOTSPOTS={
+  1 :{l:30.78,t: 2.38,w:38.30,h:26.35},   // Haube / Motorhaube
+  2 :{l:30.78,t:31.90,w:38.30,h:38.73},   // Dach
+  3 :{l:30.78,t:73.81,w:38.30,h: 9.37},   // Heckklappe oben
+  4 :{l:30.78,t:83.49,w:38.30,h:10.95},   // Heckklappe unten
+  5 :{l:22.55,t:31.11,w: 6.52,h:40.79},   // Dachrahmen L
+  6 :{l:70.92,t:31.11,w: 6.38,h:40.79},   // Dachrahmen R
+  7 :{l: 1.84,t: 2.22,w:23.26,h:26.51},   // Kotflügel VL
+  8 :{l: 1.70,t:31.90,w:18.44,h:19.37},   // Tür VL
+  9 :{l: 1.84,t:53.65,w:18.30,h:16.98},   // Tür HL
+  10:{l: 1.84,t:73.81,w:24.54,h:23.49},   // Seitenwand ML
+  11:{l:74.89,t: 2.22,w:23.26,h:26.51},   // Kotflügel VR
+  12:{l:79.72,t:31.90,w:18.44,h:19.37},   // Tür VR
+  13:{l:79.86,t:53.65,w:18.30,h:16.98},   // Tür HR
+  14:{l:73.48,t:73.81,w:24.68,h:23.49}    // Seitenwand HR
+};
+(function buildHotspots(){
+  const wrap=document.getElementById('carImgWrap');
+  GRID_ORDER.forEach(n=>{
+    const b=HOTSPOTS[n];
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className='hotspot h'+n;
+    btn.id='hot'+n;
+    btn.title=PANELS[n][1].replace(/­/g,'');
+    btn.style.left=b.l+'%';btn.style.top=b.t+'%';btn.style.width=b.w+'%';btn.style.height=b.h+'%';
+    btn.innerHTML=`<span class="hotspot-badge" id="hbadge${n}"></span>`;
+    btn.onclick=()=>openPanelModal(n);
+    wrap.appendChild(btn);
+  });
+})();
+
+// tapping a panel opens ONLY that panel's form; ✓ Fertig closes it and returns to the diagram
+function openPanelModal(n){
+  document.querySelectorAll('#panelModalBody .panel').forEach(p=>p.classList.remove('open'));
+  const p=document.querySelector('.'+PANELS[n][0]); if(p)p.classList.add('open');
+  document.getElementById('panelModalTitle').textContent=n+' · '+PANELS[n][1].replace(/­/g,'');
+  document.getElementById('panelModalOverlay').classList.add('show');
+}
+function closePanelModal(){
+  document.getElementById('panelModalOverlay').classList.remove('show');
+  calc();
+}
 
 // ---- recalc / sync boxes -> summary form ----
 function calc(){
@@ -429,6 +492,12 @@ function calc(){
       if(klebOn)klebPanels++;                      // for the BVAT glue-material flat rate
       card.classList.add('active');row.classList.add('filled');
     }else{card.classList.remove('active');row.classList.remove('filled');}
+
+    // diagram tap target: show "dents/size" on the panel and highlight it when filled
+    const hb=document.getElementById('hbadge'+n);
+    if(hb) hb.textContent = dents>0 ? (dents+' / '+(size||'')) : '';
+    const hs=document.getElementById('hot'+n);
+    if(hs) hs.classList.toggle('filled', dents>0);
   });
   // Finish pro Bauteil qty = number of panels with dents
   const fq=document.getElementById('finishQty'); if(fq)fq.textContent=panelsUsed;
