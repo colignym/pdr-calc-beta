@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDR Calc</title>
+<!-- Makes a Home-Screen icon a true standalone web app on iOS (own window, no Safari chrome).
+     This matters for storage: a plain bookmark shares Safari's general 7-day no-visit storage
+     wipe (Intelligent Tracking Prevention); a real standalone app gets its own "days of use"
+     counter based on how often THIS icon is opened, which is far more forgiving for a tool used
+     most workdays. Re-add the Home Screen icon after this deploys for it to take effect. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PDR Calc">
+<style>
+  :root{
+    --bg:#f0f0f0; --card:#ffffff; --line:#b9b9b9; --ink:#1b1b1b;
+    --accent:#1565c0; --accent2:#e8f0fe; --good:#1b7a3d;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
+  .wrap{max-width:1040px;margin:0 auto;padding:12px}
+
+  /* AI scan bar */
+  .aibar{margin-bottom:10px;font-size:12px}
+  .aibar summary{cursor:pointer;font-weight:bold;color:var(--accent)}
+  .aibar label{display:flex;gap:6px;align-items:center;margin-top:6px}
+  .aibar input{border:1px solid var(--line);border-radius:6px;padding:6px;font-size:13px;flex:1;max-width:340px}
+  .aihint{display:block;color:#777;margin-top:4px}
+  .scanstatus{display:none;margin-top:6px;background:var(--ink);color:#fff;padding:6px 10px;border-radius:6px;font-weight:bold;width:max-content;max-width:100%}
+
+  /* ---------- SUMMARY FORM (top) ---------- */
+  .sheet{background:#fff;border:1px solid var(--ink);padding:12px;margin-bottom:16px}
+  .sheet-head{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;margin-bottom:10px}
+  .sheet-head label{display:flex;align-items:baseline;gap:6px;font-size:12px;font-weight:bold;border-bottom:1px solid var(--ink);padding-bottom:2px}
+  .sheet-head label span{white-space:nowrap}
+  .sheet-head input{border:0;flex:1;font-size:13px;padding:2px;min-width:0;font-weight:normal}
+  .sheet-head input:focus{outline:none;background:var(--accent2)}
+  .sheet-head label.wide{grid-column:1 / -1;align-items:center}
+  .moreinfo{margin:2px 0 10px}
+  .moreinfo summary{cursor:pointer;font-size:11px;font-weight:bold;color:#666;padding:2px 0}
+  .moreinfo .sheet-head{margin-top:8px}
+
+  .sheet-tables{display:grid;grid-template-columns:1fr 1fr 0.85fr;gap:14px}
+  table.sum{width:100%;border-collapse:collapse;font-size:12px}
+  table.sum th,table.sum td{border:1px solid var(--ink);padding:3px 5px}
+  table.sum th{background:#efefef;font-size:10px;text-transform:uppercase}
+  table.sum td.name{text-align:left;white-space:nowrap}
+  table.sum td.val{text-align:center;width:34px;font-weight:bold}
+  table.sum td.alu{color:var(--accent);font-weight:bold;width:26px;text-align:center;font-size:10px}
+  table.sum tr.filled td{background:#f2f8ff}
+  .colhead{width:34px}
+
+  /* Nebenkosten rate sheet (framed, below the panels) */
+  .rates-frame{background:#fff;border:1px solid var(--ink);border-radius:8px;padding:12px;margin-bottom:16px}
+  .rates-frame h3{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:#444}
+  .rates{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px 10px}
+  .rate-item{display:flex;align-items:center;gap:6px;font-size:12px;background:#ececec;padding:5px 8px;border:1px solid #c5c5c5;border-radius:4px}
+  .rate-item input[type=checkbox]{width:16px;height:16px;flex:0 0 auto;margin:0}
+  .rate-item .rlabel{flex:1;font-weight:bold;line-height:1.1}
+  .rate-item .rval{white-space:nowrap;font-weight:bold;color:#222}
+  .rate-item .rqty{min-width:26px;text-align:center;border:1px solid #999;border-radius:4px;padding:2px 4px;background:#fff;font-weight:bold}
+  .rate-item.on{background:#e7f5ec;border-color:var(--good)}
+
+  /* AW totals column (beside tables) + note */
+  .totcol{display:flex;flex-direction:column;gap:6px;align-self:start}
+  .tblbadge{background:var(--accent2);color:var(--accent);border:1px solid var(--accent);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:bold;text-align:center;margin-bottom:2px}
+  .tc-row{display:flex;flex-direction:column;gap:1px;border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+  .tc-row span{font-size:11px;font-weight:bold;color:#555;text-transform:uppercase;letter-spacing:.3px}
+  .tc-row b{font-size:17px;font-variant-numeric:tabular-nums}
+  .tc-row.grand{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .tc-row.grand span{color:#cfe0ff}
+  .rateinp{width:72px;text-align:right;border:1px solid var(--line);border-radius:4px;padding:4px;font-weight:bold;font-size:14px}
+  .grand-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .rate-quick{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:bold;color:#cfe0ff;text-transform:none;letter-spacing:normal}
+  .rate-quick .rateinp{width:52px;font-size:13px}
+  .genbtn{margin-top:2px;background:var(--accent);color:#fff;border:0;border-radius:6px;padding:10px;font-weight:bold;cursor:pointer;font-size:13px}
+  .genbtn.share{background:var(--good)}
+
+  /* ---------- CAR PANEL BOXES ---------- */
+  h2.sec{font-size:13px;margin:4px 2px 8px;color:#444;text-transform:uppercase;letter-spacing:.5px}
+  .car{display:grid;grid-template-columns:1.3fr 0.42fr 1.56fr 0.42fr 1.3fr;grid-template-rows:122px 172px 172px 122px;gap:8px;align-items:stretch}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;min-height:104px;min-width:0}
+  .panel.thin{background:#fafafa}
+  .panel.thin .row{flex-direction:column}          /* Qty above Size, each full width */
+  .panel.thin .chkrow{flex-direction:column;align-items:flex-start;gap:6px;flex-wrap:nowrap}
+  .panel.thin .p-head{flex-direction:column;align-items:flex-start;gap:5px}  /* camera below number */
+  .panel.thin .camicon{margin-left:0}
+  .panel.thin .p-name{display:none}
+  .panel.active{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent2)}
+  .p-head{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:bold;line-height:1.1}
+  .num{background:var(--ink);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;flex:0 0 auto}
+  .p-name{font-size:11px;color:#333}
+  .row{display:flex;gap:6px}
+  .row > *{flex:1;min-width:0}
+  .fld{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .fld span{font-size:9px;color:#777;text-transform:uppercase;letter-spacing:.3px}
+  .panel input[type=number],.panel select{width:100%;border:1px solid var(--line);border-radius:6px;padding:7px 4px;font-size:15px;text-align:center;background:#fff}
+  .panel input[type=number]{font-weight:bold}
+  .chkrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .alubox{display:flex;align-items:center;gap:3px;font-size:11px;font-weight:bold;color:var(--accent);cursor:pointer;user-select:none}
+  .alubox.kleb{color:#6a1b9a}
+  .alubox.ptp{color:#a15200}
+  .alubox.hor{color:#00695c}
+  .alubox.neu{color:#b71c1c}
+  .alubox input{width:16px;height:16px;margin:0}
+  .camicon{margin-left:auto;border:1px solid var(--line);background:#fff;border-radius:6px;padding:1px 7px;font-size:14px;cursor:pointer;line-height:1.4}
+  .camicon.has{border-color:var(--good);background:#e7f5ec}
+
+  .p7{grid-column:1;grid-row:1}.p1{grid-column:3;grid-row:1}.p11{grid-column:5;grid-row:1}
+  .p8{grid-column:1;grid-row:2}.p5{grid-column:2;grid-row:2 / span 2}.p6{grid-column:4;grid-row:2 / span 2}.p12{grid-column:5;grid-row:2}
+  .p9{grid-column:1;grid-row:3}.p13{grid-column:5;grid-row:3}
+  .p10{grid-column:1;grid-row:4}.p14{grid-column:5;grid-row:4}
+  .p8,.p9,.p12,.p13{min-height:172px}   /* doors taller; Dachrahmen 5/6 span these so they follow */
+  .p10,.p14{min-height:0}               /* rear quarter panels reduced */
+
+  /* center column stack: Haube / Dach (taller) / Heckklappe oben+unten (shorter) */
+  .center-col{grid-column:3;grid-row:1 / span 4;display:flex;flex-direction:column;gap:8px;min-width:0}
+  .center-col .panel{flex:0 0 auto}      /* natural height — never shrink below content */
+  .center-col .p1{min-height:138px}      /* Haube — taller */
+  .center-col .p2{min-height:180px}      /* Dach — extended taller */
+
+  /* ---------- BOTTOM BAR ---------- */
+  .totbar{position:sticky;bottom:0;background:var(--ink);color:#fff;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;font-size:14px;z-index:20;flex-wrap:wrap;gap:8px}
+  .totbar b{font-size:20px}
+  .btns{display:flex;gap:8px}
+  .btns button{border:0;border-radius:8px;padding:9px 12px;font-size:13px;font-weight:bold;cursor:pointer}
+  .b-print{background:#fff;color:var(--ink)}
+  .b-reset{background:#8a2b2b;color:#fff}
+
+  @media (max-width:640px){
+    .sheet-head{grid-template-columns:1fr}
+    .sheet-tables{grid-template-columns:1fr}
+    .rates{grid-template-columns:1fr}
+    .car{grid-template-columns:1fr 1fr;grid-template-rows:none}
+    .center-col{display:contents}
+    .car .panel{grid-column:auto !important;grid-row:auto !important}
+    .panel.thin{grid-column:1 / -1 !important}
+  }
+  @media print{
+    .totbar{position:static}.btns,.camicon{display:none}
+    body{background:#fff}.wrap{max-width:none}
+  }
+
+  /* ---------- photo crop modal (FIN/VIN) ---------- */
+  .crop-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;align-items:center;justify-content:center;padding:12px}
+  .crop-overlay.show{display:flex}
+  .crop-box{background:#fff;border-radius:10px;padding:12px;max-width:96vw;display:flex;flex-direction:column;gap:10px;align-items:center}
+  .crop-hint{margin:0;font-size:12px;font-weight:bold;color:var(--ink);text-align:center;max-width:480px}
+  #cropCanvas{touch-action:none;max-width:92vw;max-height:60vh;border:1px solid var(--line);border-radius:6px;cursor:crosshair}
+  .crop-btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .crop-btn{border:0;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:bold;cursor:pointer}
+  .crop-btn.cancel{background:#8a2b2b;color:#fff}
+  .crop-btn.skip{background:#ececec;color:var(--ink);border:1px solid var(--line)}
+  .crop-btn.ok{background:var(--good);color:#fff}
+  .crop-btn.ok:disabled{background:#a8c9b3;cursor:not-allowed}
+
+  /* ---------- update banner (Home-Screen icon has no browser reload button) ---------- */
+  .update-banner{display:none;position:sticky;top:0;z-index:200;background:#b8860b;color:#fff;
+    text-align:center;font-weight:bold;font-size:13px;padding:10px;cursor:pointer}
+  .update-banner.show{display:block}
+</style>
+</head>
+<body>
+<div style="background:#ff9800;color:#000;font-weight:bold;text-align:center;padding:6px;font-size:13px;position:sticky;top:0;z-index:100000">⚠ BETA — Testversion, nicht für echte Aufträge</div>
+<div id="updateBanner" class="update-banner" onclick="applyUpdate()">🔄 Neue Version verfügbar — Tippen zum Aktualisieren</div>
+<div class="wrap">
+
+  <div class="aibar">
+    <details>
+      <summary>⚙ AI-Scan (Claude)</summary>
+      <label>API-Key <input id="aiKey" type="password" placeholder="Anthropic API key (sk-ant-…)" autocomplete="off"></label>
+      <span class="aihint">Capture 📸 fotografiert ein Formular/Dokument und füllt Kunde, Marke, Modell, Kennzeichen, FIN, Farbe, Laufleistung & Erstzulassung automatisch aus (was erkannt wird) · Marke 📷 erkennt Marke & Farbe · FIN 📷 liest die FIN · Kennzeichen 📷 liest das Kennzeichen · Laufleistung 📷 liest den Kilometerstand vom Tacho/Display — alle nutzen Claude, sobald ein API-Key eingetragen ist. Ohne Key: FIN/Kennzeichen nutzen OCR im Browser (weniger zuverlässig), Capture/Laufleistung brauchen zwingend einen Key.</span>
+    </details>
+    <div id="scanStatus" class="scanstatus"></div>
+  </div>
+
+  <!-- ============ SUMMARY FORM ============ -->
+  <div class="sheet">
+    <div class="sheet-head">
+      <label class="wide"><span>Capture</span><input id="m_kunde"><button type="button" class="camicon" id="cambtncapture" title="Formular fotografieren — füllt alle erkannten Felder automatisch aus" onclick="document.getElementById('camcapture').click()">📋</button><input id="camcapture" type="file" accept="image/*" style="display:none" onchange="photo('capture',this)"></label>
+      <label><span>Marke</span><input id="m_make"><button type="button" class="camicon" id="cambtnmarke" title="Take photo" onclick="document.getElementById('cammarke').click()">📷</button><input id="cammarke" type="file" accept="image/*" capture="environment" style="display:none" onchange="photo('marke',this)"></label>
+      <label><span>Modell</span><input id="m_model"></label>
+      <label><span>Kennzeichen</span><input id="m_plate"><button type="button" class="camicon" id="cambtnplate" title="Kennzeichen scannen (OCR)" onclick="document.getElementById('camplate').click()">📷</button><input id="camplate" type="file" accept="image/*" capture="environment" style="display:none" onchange="photo('plate',this)"></label>
+      <label><span>FIN</span><input id="m_vin"><button type="button" class="camicon" id="cambtnvin" title="Foto aufnehmen oder aus Fotos wählen" onclick="document.getElementById('camvin').click()">📷</button><input id="camvin" type="file" accept="image/*" style="display:none" onchange="photo('vin',this)"></label>
+      <label><span>Farbe</span><input id="m_farbe"></label>
+      <label><span>Laufleistung</span><input id="m_km" inputmode="numeric"><button type="button" class="camicon" id="cambtnkm" title="Foto vom Tacho/Display aufnehmen oder wählen" onclick="document.getElementById('camkm').click()">📷</button><input id="camkm" type="file" accept="image/*" style="display:none" onchange="photo('km',this)"></label>
+      <label><span>Datum</span><input id="m_date" type="date"></label>
+    </div>
+    <details class="moreinfo">
+      <summary>+ Weitere Angaben (nur fürs Dokument)</summary>
+      <div class="sheet-head">
+        <label><span>Adresse</span><input id="m_adresse"></label>
+        <label><span>PLZ/Stadt</span><input id="m_plz"></label>
+        <label><span>Erstzulassung</span><input id="m_erst" type="date"></label>
+        <label><span>Protokollnummer</span><input id="m_protokoll"></label>
+        <label><span>Rechnungsnummer</span><input id="m_rechnung"></label>
+        <label><span>Auftragsnummer</span><input id="m_auftrag"></label>
+        <label><span>Sachbearbeiter</span><input id="m_sachb"></label>
+        <label><span>Stundenlohn €/h</span><input id="m_rate" type="number" min="0" step="1" value="65"></label>
+      </div>
+    </details>
+    <div class="sheet-tables">
+      <table class="sum"><thead><tr><th>#</th><th>Panel</th><th class="colhead">Qty</th><th class="colhead">Gr.</th><th class="colhead">AW</th></tr></thead><tbody id="sumL"></tbody></table>
+      <table class="sum"><thead><tr><th>#</th><th>Panel</th><th class="colhead">Qty</th><th class="colhead">Gr.</th><th class="colhead">AW</th></tr></thead><tbody id="sumR"></tbody></table>
+      <div class="totcol">
+        <div class="tblbadge" id="tblBadge">Tabelle 10er</div>
+        <div class="tc-row"><span>Bauteile 1–14</span><b id="awPanels">0,00</b></div>
+        <div class="tc-row"><span>Nebenkosten</span><b id="awSund">0,00</b></div>
+        <div class="tc-row grand"><span>Gesamt AW</span><div class="grand-row"><b id="awGrand">0,00</b><label class="rate-quick">€/h<input id="m_rate_quick" class="rateinp" type="number" min="0" step="1" oninput="document.getElementById('m_rate').value=this.value;calc();"></label></div></div>
+        <button type="button" class="genbtn" onclick="genDoc()">📄 Kalkulation erstellen</button>
+        <button type="button" class="genbtn share" onclick="shareDoc()">📧 Als PDF senden</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PANEL BOXES ============ -->
+  <div class="car" id="car"></div>
+
+  <!-- ============ NEBENKOSTEN ============ -->
+  <div class="rates-frame">
+    <h3>Nebenkosten</h3>
+    <div class="rates" id="rates"></div>
+  </div>
+
+</div>
+
+<!-- ============ PHOTO CROP MODAL (used for FIN/VIN photos) ============ -->
+<div id="cropOverlay" class="crop-overlay">
+  <div class="crop-box">
+    <p class="crop-hint">Ziehe ein Rechteck um die FIN-Zeichen — nur dieser Ausschnitt wird gelesen.</p>
+    <canvas id="cropCanvas"></canvas>
+    <div class="crop-btns">
+      <button type="button" class="crop-btn cancel" onclick="closeCropper()">Abbrechen</button>
+      <button type="button" class="crop-btn skip" onclick="cropperUseFull()">Ganzes Bild</button>
+      <button type="button" class="crop-btn ok" id="cropConfirmBtn" onclick="cropperConfirm()" disabled>✂️ Zuschnitt verwenden</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// bump this string on every deploy so the Home-Screen icon (which caches aggressively and has
+// no reload button of its own) can detect a newer version is live and prompt to update.
+const APP_VERSION='2026-09-04-04';
+const AWDATA={"10":{"H":{"1":{"10":5,"20":6,"30":7,"40":8,"50":9,"60":10,"70":11,"80":12},"2":{"10":6,"20":7,"30":9,"40":10,"50":12,"60":13,"70":15,"80":17},"3":{"10":7,"20":8,"30":10,"40":12,"50":14,"60":16,"70":19,"80":22},"4":{"10":7,"20":9,"30":12,"40":14,"50":17,"60":19,"70":23,"80":27},"5":{"10":8,"20":10,"30":13,"40":16,"50":19,"60":22,"70":27,"80":32},"6":{"10":9,"20":11,"30":15,"40":18,"50":22,"60":25,"70":31,"80":37},"7":{"10":10,"20":12,"30":16,"40":20,"50":24,"60":28,"70":35,"80":42},"8":{"10":10,"20":13,"30":18,"40":22,"50":27,"60":31,"70":39,"80":47},"9":{"10":11,"20":14,"30":19,"40":24,"50":29,"60":34,"70":43,"80":52},"10":{"10":12,"20":15,"30":21,"40":26,"50":32,"60":37,"70":47,"80":57},"13":{"10":13,"20":17,"30":23,"40":29,"50":36,"60":43,"70":55,"80":68},"16":{"10":14,"20":19,"30":25,"40":32,"50":40,"60":48,"70":64,"80":80},"19":{"10":15,"20":20,"30":27,"40":35,"50":44,"60":54,"70":72,"80":91},"22":{"10":16,"20":22,"30":29,"40":37,"50":48,"60":59,"70":79,"80":100},"25":{"10":17,"20":23,"30":30,"40":40,"50":51,"60":64,"70":86,"80":108},"28":{"10":18,"20":24,"30":32,"40":42,"50":54,"60":69,"70":92,"80":116},"31":{"10":19,"20":25,"30":33,"40":44,"50":58,"60":74,"70":98,"80":124},"34":{"10":19,"20":26,"30":35,"40":46,"50":61,"60":78,"70":104,"80":131},"37":{"10":20,"20":27,"30":36,"40":48,"50":64,"60":83,"70":111,"80":139},"40":{"10":21,"20":28,"30":38,"40":50,"50":68,"60":88,"70":117,"80":147},"45":{"10":22,"20":30,"30":40,"40":54,"50":73,"60":96,"70":128,"80":160},"50":{"10":23,"20":32,"30":43,"40":57,"50":79,"60":104,"70":138,"80":173},"55":{"10":25,"20":33,"30":45,"40":61,"50":84,"60":112,"70":149,"80":186},"60":{"10":26,"20":35,"30":48,"40":64,"50":90,"60":120,"70":159,"80":199},"65":{"10":27,"20":37,"30":50,"40":68,"50":95,"60":128,"70":170,"80":212},"70":{"10":28,"20":39,"30":53,"40":71,"50":101,"60":136,"70":180,"80":225},"75":{"10":30,"20":40,"30":55,"40":75,"50":106,"60":144,"70":191,"80":238},"80":{"10":31,"20":42,"30":58,"40":78,"50":112,"60":152,"70":201,"80":251},"85":{"10":32,"20":44,"30":60,"40":82,"50":117,"60":160,"70":212,"80":264},"90":{"10":33,"20":45,"30":63,"40":85,"50":123,"60":168,"70":222,"80":277},"95":{"10":35,"20":47,"30":65,"40":89,"50":128,"60":176,"70":233,"80":290},"100":{"10":36,"20":49,"30":68,"40":92,"50":134,"60":184,"70":243,"80":303},"110":{"10":38,"20":52,"30":73,"40":99,"50":145,"60":200,"70":264,"80":329},"120":{"10":41,"20":56,"30":78,"40":106,"50":156,"60":216,"70":285,"80":355},"130":{"10":43,"20":59,"30":83,"40":113,"50":167,"60":232,"70":306,"80":381},"140":{"10":46,"20":63,"30":88,"40":120,"50":178,"60":248,"70":327,"80":407},"150":{"10":48,"20":67,"30":93,"40":127,"50":189,"60":264,"70":348,"80":433},"160":{"10":51,"20":70,"30":98,"40":134,"50":200,"60":280,"70":369},"170":{"10":53,"20":74,"30":103,"40":141,"50":211,"60":296,"70":390},"180":{"10":56,"20":77,"30":108,"40":148,"50":222,"60":312,"70":411},"190":{"10":58,"20":81,"30":113,"40":155,"50":233,"60":328,"70":432},"200":{"10":61,"20":85,"30":118,"40":162,"50":244,"60":344,"70":453},"210":{"10":63,"20":88,"30":123,"40":169,"50":255,"60":360},"220":{"10":66,"20":92,"30":128,"40":176,"50":266,"60":376},"230":{"10":68,"20":95,"30":133,"40":183,"50":277,"60":392},"240":{"10":71,"20":99,"30":138,"40":190,"50":288,"60":408},"250":{"10":73,"20":103,"30":143,"40":197,"50":299,"60":424},"260":{"10":76,"20":106,"30":148,"40":204,"50":310},"270":{"10":78,"20":110,"30":153,"40":211,"50":321},"280":{"10":81,"20":113,"30":158,"40":218,"50":332},"300":{"10":86,"20":121,"30":168,"40":232,"50":354},"325":{"10":92,"20":130,"30":180,"40":250,"50":381},"350":{"10":98,"20":139,"30":193,"40":267,"50":409},"375":{"10":105,"20":148,"30":205,"40":285,"50":436},"400":{"10":111,"20":157,"30":218,"40":302,"50":464},"425":{"10":117,"20":166,"30":230,"40":320},"450":{"10":123,"20":175,"30":243,"40":337},"475":{"10":130,"20":184,"30":255,"40":355},"500":{"10":136,"20":193,"30":268,"40":372},"525":{"10":142,"20":202,"30":280,"40":390},"550":{"10":148,"20":211,"30":293,"40":407},"575":{"10":155,"20":220,"30":305,"40":425},"600":{"10":161,"20":229,"30":318,"40":442},"650":{"10":173,"20":247,"30":343},"700":{"10":186,"20":265,"30":368},"750":{"10":198,"20":283,"30":393},"800":{"10":211,"20":301,"30":418}},"V":{"1":{"10":5,"20":6,"30":7,"40":9,"50":10,"60":10,"70":11,"80":12},"2":{"10":6,"20":8,"30":9,"40":12,"50":14,"60":14,"70":16,"80":19},"3":{"10":7,"20":9,"30":11,"40":14,"50":17,"60":18,"70":21,"80":25},"4":{"10":8,"20":11,"30":13,"40":17,"50":21,"60":22,"70":26,"80":32},"5":{"10":9,"20":12,"30":15,"40":19,"50":24,"60":26,"70":31,"80":38},"6":{"10":10,"20":13,"30":17,"40":21,"50":27,"60":29,"70":35,"80":43},"7":{"10":11,"20":14,"30":18,"40":23,"50":29,"60":32,"70":38,"80":47},"8":{"10":11,"20":15,"30":20,"40":25,"50":32,"60":35,"70":42,"80":52},"9":{"10":12,"20":16,"30":21,"40":27,"50":34,"60":38,"70":45,"80":56},"10":{"10":13,"20":17,"30":23,"40":29,"50":37,"60":41,"70":49,"80":61},"11":{"10":13,"20":18,"30":24,"40":31,"50":39,"60":44,"70":52,"80":65},"12":{"10":14,"20":19,"30":26,"40":33,"50":42,"60":47,"70":56,"80":69},"13":{"10":14,"20":20,"30":27,"40":35,"50":44,"60":50,"70":59,"80":73},"14":{"10":15,"20":21,"30":29,"40":37,"50":47,"60":53,"70":63,"80":77},"15":{"10":15,"20":22,"30":30,"40":39,"50":49,"60":56,"70":66,"80":81},"16":{"10":16,"20":23,"30":32,"40":41,"50":52,"60":59,"70":70,"80":85},"17":{"10":16,"20":24,"30":33,"40":43,"50":54,"60":62,"70":73,"80":89},"18":{"10":17,"20":25,"30":35,"40":45,"50":57,"60":66,"70":77,"80":93},"19":{"10":17,"20":26,"30":36,"40":47,"50":59,"60":68,"70":80,"80":97},"20":{"10":18,"20":27,"30":38,"40":49,"50":62,"60":71,"70":84,"80":101},"21":{"10":18,"20":28,"30":39,"40":51,"50":64,"60":74,"70":87,"80":105},"22":{"10":19,"20":29,"30":40,"40":52,"50":66,"60":76,"70":90,"80":109},"23":{"10":20,"20":29,"30":41,"40":54,"50":68,"60":79,"70":93,"80":113},"24":{"10":20,"20":30,"30":42,"40":55,"50":70,"60":81,"70":96,"80":117},"25":{"10":21,"20":31,"30":43,"40":57,"50":72,"60":84,"70":99,"80":121},"26":{"10":21,"20":32,"30":44,"40":58,"50":74,"60":86,"70":102,"80":125},"27":{"10":22,"20":32,"30":45,"40":60,"50":76,"60":89,"70":105,"80":129},"28":{"10":22,"20":33,"30":46,"40":61,"50":78,"60":91,"70":108,"80":133},"29":{"10":23,"20":34,"30":47,"40":63,"50":80,"60":94,"70":111,"80":137},"30":{"10":23,"20":35,"30":48,"40":64,"50":82,"60":96,"70":114,"80":141},"31":{"10":23,"20":35,"30":49,"40":66,"50":84,"60":99,"70":117,"80":145},"32":{"10":24,"20":36,"30":50,"40":67,"50":86,"60":101,"70":120,"80":149},"33":{"10":24,"20":37,"30":51,"40":69,"50":88,"60":104,"70":123,"80":153},"34":{"10":25,"20":38,"30":52,"40":70,"50":90,"60":106,"70":126,"80":157},"35":{"10":25,"20":38,"30":53,"40":72,"50":92,"60":109,"70":129,"80":161},"36":{"10":26,"20":39,"30":54,"40":73,"50":94,"60":111,"70":132,"80":165},"37":{"10":26,"20":40,"30":55,"40":75,"50":96,"60":114,"70":135,"80":169},"38":{"10":27,"20":41,"30":56,"40":76,"50":98,"60":116,"70":138,"80":173},"39":{"10":27,"20":41,"30":57,"40":78,"50":100,"60":119,"70":141,"80":177},"40":{"10":28,"20":42,"30":58,"40":79,"50":102,"60":121,"70":144,"80":181},"41":{"10":28,"20":43,"30":59,"40":81,"50":104,"60":124,"70":147,"80":185},"42":{"10":29,"20":44,"30":60,"40":82,"50":106,"60":126,"70":150,"80":189},"43":{"10":29,"20":44,"30":61,"40":84,"50":108,"60":129,"70":153,"80":193},"44":{"10":30,"20":45,"30":62,"40":85,"50":110,"60":131,"70":156,"80":197},"45":{"10":30,"20":46,"30":63,"40":87,"50":112,"60":134,"70":159,"80":201},"46":{"10":31,"20":47,"30":64,"40":88,"50":114,"60":136,"70":162,"80":205},"47":{"10":31,"20":47,"30":65,"40":90,"50":116,"60":139,"70":165,"80":209},"48":{"10":32,"20":48,"30":66,"40":91,"50":118,"60":141,"70":168,"80":213},"49":{"10":32,"20":49,"30":67,"40":93,"50":120,"60":144,"70":171,"80":217},"50":{"10":33,"20":50,"30":68,"40":94,"50":122,"60":146,"70":174,"80":221},"51":{"10":33,"20":50,"30":69,"40":96,"50":124,"60":149,"70":177,"80":225},"52":{"10":34,"20":51,"30":70,"40":97,"50":126,"60":151,"70":180,"80":229},"53":{"10":34,"20":52,"30":71,"40":99,"50":128,"60":154,"70":183,"80":233},"54":{"10":35,"20":53,"30":72,"40":100,"50":130,"60":156,"70":186,"80":237},"55":{"10":35,"20":53,"30":73,"40":102,"50":132,"60":159,"70":189,"80":241},"60":{"10":38,"20":57,"30":78,"40":109,"50":142,"60":171,"70":204,"80":261},"65":{"10":40,"20":61,"30":83,"40":117,"50":152,"60":184,"70":219,"80":281},"70":{"10":43,"20":65,"30":88,"40":124,"50":162,"60":196,"70":234,"80":301},"80":{"10":48,"20":72,"30":98,"40":139,"50":182,"60":221,"70":264,"80":341},"90":{"10":53,"20":80,"30":108,"40":154,"50":202,"60":246,"70":294,"80":381},"100":{"10":58,"20":87,"30":118,"40":169,"50":222,"60":271,"70":324,"80":421},"110":{"10":118,"20":139},"120":{"10":130,"20":149},"130":{"10":142}}},"12":{"H":{"1":{"10":6,"20":7,"30":8,"40":10,"50":11,"60":12,"70":13,"80":14},"2":{"10":7,"20":8,"30":11,"40":12,"50":14,"60":16,"70":18,"80":20},"3":{"10":8,"20":10,"30":12,"40":14,"50":17,"60":19,"70":23,"80":26},"4":{"10":8,"20":11,"30":14,"40":17,"50":20,"60":23,"70":28,"80":32},"5":{"10":10,"20":12,"30":16,"40":19,"50":23,"60":26,"70":32,"80":38},"6":{"10":11,"20":13,"30":18,"40":22,"50":26,"60":30,"70":37,"80":44},"7":{"10":12,"20":14,"30":19,"40":24,"50":29,"60":34,"70":42,"80":50},"8":{"10":12,"20":16,"30":22,"40":26,"50":32,"60":37,"70":47,"80":56},"9":{"10":13,"20":17,"30":23,"40":29,"50":35,"60":41,"70":52,"80":62},"10":{"10":14,"20":18,"30":25,"40":31,"50":38,"60":44,"70":56,"80":68},"13":{"10":16,"20":20,"30":28,"40":35,"50":43,"60":52,"70":66,"80":82},"16":{"10":17,"20":23,"30":30,"40":38,"50":48,"60":58,"70":77,"80":96},"19":{"10":18,"20":24,"30":32,"40":42,"50":53,"60":65,"70":86,"80":109},"22":{"10":19,"20":26,"30":35,"40":44,"50":58,"60":71,"70":95,"80":120},"25":{"10":20,"20":28,"30":36,"40":48,"50":61,"60":77,"70":103,"80":130},"28":{"10":22,"20":29,"30":38,"40":50,"50":65,"60":83,"70":110,"80":139},"31":{"10":23,"20":30,"30":40,"40":53,"50":70,"60":89,"70":118,"80":149},"34":{"10":23,"20":31,"30":42,"40":55,"50":73,"60":94,"70":125,"80":157},"37":{"10":24,"20":32,"30":43,"40":58,"50":77,"60":100,"70":133,"80":167},"40":{"10":25,"20":34,"30":46,"40":60,"50":82,"60":106,"70":140,"80":176},"45":{"10":26,"20":36,"30":48,"40":65,"50":88,"60":115,"70":154,"80":192},"50":{"10":28,"20":38,"30":52,"40":68,"50":95,"60":125,"70":166,"80":208},"55":{"10":30,"20":40,"30":54,"40":73,"50":101,"60":134,"70":179,"80":223},"60":{"10":31,"20":42,"30":58,"40":77,"50":108,"60":144,"70":191,"80":239},"65":{"10":32,"20":44,"30":60,"40":82,"50":114,"60":154,"70":204,"80":254},"70":{"10":34,"20":46,"30":64,"40":85,"50":121,"60":163,"70":216,"80":270},"75":{"10":36,"20":48,"30":66,"40":90,"50":127,"60":173,"70":229,"80":286},"80":{"10":37,"20":50,"30":70,"40":94,"50":134,"60":182,"70":241,"80":301},"85":{"10":38,"20":52,"30":72,"40":98,"50":140,"60":192,"70":254,"80":317},"90":{"10":40,"20":54,"30":76,"40":102,"50":148,"60":202,"70":266,"80":332},"95":{"10":42,"20":56,"30":78,"40":107,"50":154,"60":211,"70":280,"80":348},"100":{"10":43,"20":59,"30":82,"40":110,"50":161,"60":221,"70":292,"80":364},"110":{"10":46,"20":62,"30":88,"40":119,"50":174,"60":240,"70":317,"80":395},"120":{"10":49,"20":67,"30":94,"40":127,"50":187,"60":259,"70":342,"80":426},"130":{"10":52,"20":71,"30":100,"40":136,"50":200,"60":278,"70":367,"80":457},"140":{"10":55,"20":76,"30":106,"40":144,"50":214,"60":298,"70":392,"80":488},"150":{"10":58,"20":80,"30":112,"40":152,"50":227,"60":317,"70":418,"80":520},"160":{"10":61,"20":84,"30":118,"40":161,"50":240,"60":336,"70":443},"170":{"10":64,"20":89,"30":124,"40":169,"50":253,"60":355,"70":468},"180":{"10":67,"20":92,"30":130,"40":178,"50":266,"60":374,"70":493},"190":{"10":70,"20":97,"30":136,"40":186,"50":280,"60":394,"70":518},"200":{"10":73,"20":102,"30":142,"40":194,"50":293,"60":413,"70":544},"210":{"10":76,"20":106,"30":148,"40":203,"50":306,"60":432},"220":{"10":79,"20":110,"30":154,"40":211,"50":319,"60":451},"230":{"10":82,"20":114,"30":160,"40":220,"50":332,"60":470},"240":{"10":85,"20":119,"30":166,"40":228,"50":346,"60":490},"250":{"10":88,"20":124,"30":172,"40":236,"50":359,"60":509},"260":{"10":91,"20":127,"30":178,"40":245,"50":372},"270":{"10":94,"20":132,"30":184,"40":253,"50":385},"280":{"10":97,"20":136,"30":190,"40":262,"50":398},"300":{"10":103,"20":145,"30":202,"40":278,"50":425},"325":{"10":110,"20":156,"30":216,"40":300,"50":457},"350":{"10":118,"20":167,"30":232,"40":320,"50":491},"375":{"10":126,"20":178,"30":246,"40":342,"50":523},"400":{"10":133,"20":188,"30":262,"40":362,"50":577},"425":{"10":140,"20":199,"30":276,"40":384},"450":{"10":148,"20":210,"30":292,"40":404},"475":{"10":156,"20":221,"30":306,"40":426},"500":{"10":163,"20":232,"30":322,"40":446},"525":{"10":170,"20":242,"30":336,"40":468},"550":{"10":178,"20":253,"30":352,"40":488},"575":{"10":186,"20":264,"30":366,"40":510},"600":{"10":193,"20":275,"30":382,"40":530},"650":{"10":208,"20":296,"30":412},"700":{"10":223,"20":318,"30":442},"750":{"10":238,"20":340,"30":472},"800":{"10":253,"20":361,"30":502}},"V":{"1":{"10":6,"20":7,"30":8,"40":11,"50":12,"60":12,"70":13,"80":14},"2":{"10":7,"20":10,"30":11,"40":14,"50":17,"60":17,"70":19,"80":23},"3":{"10":8,"20":11,"30":13,"40":17,"50":20,"60":22,"70":25,"80":30},"4":{"10":10,"20":13,"30":16,"40":20,"50":25,"60":26,"70":31,"80":38},"5":{"10":11,"20":14,"30":18,"40":23,"50":29,"60":31,"70":37,"80":46},"6":{"10":12,"20":16,"30":20,"40":25,"50":32,"60":35,"70":42,"80":52},"7":{"10":13,"20":17,"30":22,"40":28,"50":35,"60":38,"70":46,"80":56},"8":{"10":13,"20":18,"30":24,"40":30,"50":38,"60":42,"70":50,"80":62},"9":{"10":14,"20":19,"30":25,"40":32,"50":41,"60":46,"70":54,"80":67},"10":{"10":16,"20":20,"30":28,"40":35,"50":44,"60":49,"70":59,"80":73},"11":{"10":16,"20":22,"30":29,"40":37,"50":47,"60":53,"70":62,"80":78},"12":{"10":17,"20":23,"30":31,"40":40,"50":50,"60":56,"70":67,"80":83},"13":{"10":17,"20":24,"30":32,"40":42,"50":53,"60":60,"70":71,"80":88},"14":{"10":18,"20":25,"30":35,"40":44,"50":56,"60":64,"70":76,"80":92},"15":{"10":18,"20":26,"30":36,"40":47,"50":59,"60":67,"70":79,"80":97},"16":{"10":19,"20":28,"30":38,"40":49,"50":62,"60":71,"70":84,"80":102},"17":{"10":19,"20":29,"30":40,"40":52,"50":65,"60":74,"70":88,"80":107},"18":{"10":20,"20":30,"30":42,"40":54,"50":68,"60":79,"70":92,"80":111},"19":{"10":20,"20":31,"30":43,"40":56,"50":71,"60":82,"70":96,"80":116},"20":{"10":22,"20":32,"30":46,"40":59,"50":74,"60":85,"70":101,"80":121},"21":{"10":22,"20":34,"30":47,"40":61,"50":77,"60":89,"70":104,"80":126},"22":{"10":23,"20":35,"30":48,"40":62,"50":79,"60":91,"70":108,"80":131},"23":{"10":24,"20":35,"30":49,"40":65,"50":82,"60":95,"70":112,"80":136},"24":{"10":24,"20":36,"30":50,"40":66,"50":84,"60":97,"70":115,"80":140},"25":{"10":25,"20":37,"30":52,"40":68,"50":86,"60":101,"70":119,"80":145},"26":{"10":25,"20":38,"30":53,"40":70,"50":89,"60":103,"70":122,"80":150},"27":{"10":26,"20":38,"30":54,"40":72,"50":91,"60":107,"70":126,"80":155},"28":{"10":26,"20":40,"30":55,"40":73,"50":94,"60":109,"70":130,"80":160},"29":{"10":28,"20":41,"30":56,"40":76,"50":96,"60":113,"70":133,"80":164},"30":{"10":28,"20":42,"30":58,"40":77,"50":98,"60":115,"70":137,"80":169},"31":{"10":28,"20":42,"30":59,"40":79,"50":101,"60":119,"70":140,"80":174},"32":{"10":29,"20":43,"30":60,"40":80,"50":103,"60":121,"70":144,"80":179},"33":{"10":29,"20":44,"30":61,"40":83,"50":106,"60":125,"70":148,"80":184},"34":{"10":30,"20":46,"30":62,"40":84,"50":108,"60":127,"70":151,"80":188},"35":{"10":30,"20":46,"30":64,"40":86,"50":110,"60":131,"70":155,"80":193},"36":{"10":31,"20":47,"30":65,"40":88,"50":113,"60":133,"70":158,"80":198},"37":{"10":31,"20":48,"30":66,"40":90,"50":115,"60":137,"70":162,"80":203},"38":{"10":32,"20":49,"30":67,"40":91,"50":118,"60":139,"70":166,"80":208},"39":{"10":32,"20":49,"30":68,"40":94,"50":120,"60":143,"70":169,"80":212},"40":{"10":34,"20":50,"30":70,"40":95,"50":122,"60":145,"70":173,"80":217},"41":{"10":34,"20":52,"30":71,"40":97,"50":125,"60":149,"70":176,"80":222},"42":{"10":35,"20":53,"30":72,"40":98,"50":127,"60":151,"70":180,"80":227},"43":{"10":35,"20":53,"30":73,"40":101,"50":130,"60":155,"70":184,"80":232},"44":{"10":36,"20":54,"30":74,"40":102,"50":132,"60":157,"70":187,"80":236},"45":{"10":36,"20":55,"30":76,"40":104,"50":134,"60":161,"70":191,"80":241},"46":{"10":37,"20":56,"30":77,"40":106,"50":137,"60":163,"70":194,"80":246},"47":{"10":37,"20":56,"30":78,"40":108,"50":139,"60":167,"70":198,"80":251},"48":{"10":38,"20":58,"30":79,"40":109,"50":142,"60":169,"70":202,"80":256},"49":{"10":38,"20":59,"30":80,"40":112,"50":144,"60":173,"70":205,"80":260},"50":{"10":40,"20":60,"30":82,"40":113,"50":146,"60":175,"70":209,"80":265},"51":{"10":40,"20":60,"30":83,"40":115,"50":149,"60":179,"70":212,"80":270},"52":{"10":40,"20":61,"30":84,"40":116,"50":151,"60":181,"70":216,"80":275},"53":{"10":41,"20":62,"30":85,"40":119,"50":154,"60":185,"70":220,"80":280},"54":{"10":42,"20":64,"30":86,"40":120,"50":156,"60":187,"70":223,"80":284},"55":{"10":42,"20":64,"30":88,"40":122,"50":158,"60":191,"70":227,"80":289},"60":{"10":46,"20":68,"30":94,"40":131,"50":170,"60":205,"70":245,"80":313},"65":{"10":48,"20":73,"30":100,"40":140,"50":182,"60":221,"70":263,"80":337},"70":{"10":52,"20":78,"30":106,"40":149,"50":194,"60":235,"70":281,"80":361},"80":{"10":58,"20":86,"30":118,"40":167,"50":218,"60":265,"70":317,"80":409},"90":{"10":64,"20":96,"30":130,"40":18,"50":242,"60":295,"70":353,"80":457},"100":{"10":70,"20":104,"30":142,"40":203,"50":266,"60":325,"70":389,"80":505}}}};
+
+// [num, css-class, name, thin?]
+const PANELS = {
+  1:['p1','Haube'],2:['p2','Dach'],3:['p3','Heckklappe oben'],4:['p4','Heckklappe unten'],
+  5:['p5','Dach­rahmen L',true],6:['p6','Dach­rahmen R',true],
+  7:['p7','Kotflügel VL'],8:['p8','Tür VL'],9:['p9','Tür HL'],10:['p10','Seitenwand ML'],
+  11:['p11','Kotflügel VR'],12:['p12','Tür VR'],13:['p13','Tür HR'],14:['p14','Seitenwand HR']
+};
+const LEFT=[1,3,5,7,8,9,10];      // left column of the summary form
+const RIGHT=[2,4,6,11,12,13,14];  // right column
+const GRID_ORDER=[1,2,3,4,5,6,7,8,9,10,11,12,13,14];
+const SIZES=[20,30,40,50,60,70,80];
+const $=s=>document.querySelector(s);
+
+// ---- build summary table rows ----
+function buildSum(ids,tbody){
+  ids.forEach(n=>{
+    const tr=document.createElement('tr');
+    tr.id='sumrow'+n;
+    tr.innerHTML=`<td class="val">${n}</td><td class="name">${PANELS[n][1]}</td>`+
+                 `<td class="val" id="q${n}"></td><td class="val" id="sz${n}"></td><td class="val" id="aw${n}"></td>`;
+    document.getElementById(tbody).appendChild(tr);
+  });
+}
+buildSum(LEFT,'sumL');buildSum(RIGHT,'sumR');
+
+// ---- build rate sheet (10er values shown in the source table) ----
+// order is row-major to match the printed 3-column layout
+// Alu, Kleben, Push-to-Paint are chosen per-panel in the boxes, so they are NOT here.
+const RATES=[
+  ['ruest','Rüstzeit pro Fahrzeug','6,00 AW'],
+  ['finish','Finish pro Bauteil','2,50 AW'],
+  ['finishmax','Finish Maximalwert','13,00 AW'],
+  ['ueber','Übergreifzone','9,00 AW'],
+  ['hohl','Hohlraumkonservierung','4,00 AW']
+];
+// flat AW values per divider — BVAT Calculation Guidelines (26.11.2024)
+const RATE_AW_ALL={
+  '10':{ruest:6, finish:2.5, finishmax:13,   ueber:9,  hohl:4},
+  '12':{ruest:7, finish:3.5, finishmax:16,   ueber:11, hohl:5}
+};
+// BVAT: per-panel surcharges COMPOUND (multiply), applied Push-to-Paint -> Aluminium -> Klebetechnik
+// e.g. 100 AW -40% = 60 -> +25% alu = 75 -> +30% Kleb = 97,50 AW
+const SUR={ptp:0.60, alu:1.25, kleb:1.30};
+// BVAT flat material costs in EUR (net)
+const MAT={hohl:15, kleb_le2:10, kleb_3to5:15, kleb_ge6:20};
+// 12er table: BMW & Mercedes families, incl. their sub-brands MINI (BMW) and Smart (Mercedes) —
+// both follow the parent group's factory labor-time system. 10er for everything else.
+function activeDivider(){
+  const mk=(document.getElementById('m_make').value||'').toLowerCase();
+  return /bmw|mini|merc|benz|amg|maybach|alpina|brabus|smart/.test(mk) ? '12' : '10';
+}
+// panel AW display: round to 2dp, drop trailing zeros, German comma
+function fmtAW(x){ return (Math.round(x*100)/100).toString().replace('.',','); }
+
+// FIN/VIN chars 1-3 = WMI (World Manufacturer Identifier) -> the make, free & offline.
+const WMI={
+  WBA:'BMW', WBS:'BMW', WBY:'BMW', WBX:'BMW', WB1:'BMW',
+  WMW:'MINI',
+  WDB:'Mercedes-Benz', WDC:'Mercedes-Benz', WDD:'Mercedes-Benz', WDF:'Mercedes-Benz',
+  W1K:'Mercedes-Benz', W1N:'Mercedes-Benz', W1V:'Mercedes-Benz',
+  WME:'Smart',
+  WVW:'Volkswagen', WVG:'Volkswagen', WV1:'Volkswagen', WV2:'Volkswagen', WV3:'Volkswagen',
+  WAU:'Audi', WA1:'Audi', WAV:'Audi', TRU:'Audi', TRJ:'Audi',
+  WP0:'Porsche', WP1:'Porsche',
+  W0L:'Opel', W0V:'Opel',
+  WF0:'Ford'
+};
+function makeFromVin(vin){
+  const p=(vin||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3);
+  return WMI[p]||'';
+}
+
+// panel orientation for the matrix. H = waagerecht (horizontal), V = senkrecht (vertical).
+// 1,2,3,5,6 fixed horizontal; 7-14 fixed vertical; 4 (Heckklappe unten) defaults V, Hor tick -> H.
+// BVAT §5: Dachrahmen ("roof frame or pillar") is VERTICAL. Change 5/6 back to 'H' if you disagree.
+const ORIENT={1:'H',2:'H',3:'H',4:'V',5:'V',6:'V',7:'V',8:'V',9:'V',10:'V',11:'V',12:'V',13:'V',14:'V'};
+function awLookup(divider,orient,dents,size){
+  if(!dents||!size) return 0;
+  const M=AWDATA[divider][orient]; if(!M) return 0;
+  const S=String(size);
+  const bands=Object.keys(M).map(Number).sort((a,b)=>a-b);
+  // BVAT tiers are a floor: a dent count belongs to the highest listed tier at or below it
+  // (e.g. 114 dents uses the "110" row, not "120") — confirmed against a real PDR-Team
+  // invoice on 2026-09-01. Table itself is the official BVAT "Hagel-Kalkulation 2024" sheet
+  // (bvat.de), listing waagerechte Bauteile up to 800 Dellen — no extrapolation needed or
+  // used; a dent count beyond the table's own printed maximum simply uses that maximum tier,
+  // since inventing numbers past the published table is not "true to the table" (2026-09-01).
+  let chosen=null;                                   // largest band <= dents that has this size
+  for(let i=bands.length-1;i>=0;i--){ if(bands[i]<=dents && M[bands[i]][S]!=null){ chosen=bands[i]; break; } }
+  if(chosen==null){ for(const b of bands){ if(M[b][S]!=null){ chosen=b; break; } } }
+  return chosen!=null ? M[chosen][S] : 0;
+}
+// these always apply — ticked and locked
+const ALWAYS=['ruest','finish','finishmax'];
+(function buildRates(){
+  const box=document.getElementById('rates');
+  RATES.forEach(([key,label,val])=>{
+    const locked=ALWAYS.includes(key);           // always on, cannot be unticked
+    const on=locked||key==='hohl';                // Hohlraumkonservierung defaults ticked but stays editable
+    const div=document.createElement('div');
+    div.className='rate-item'+(on?' on':'');div.id='rate_'+key;
+    const qty = key==='finish' ? `<span class="rqty" id="finishQty">0</span>×` : '';
+    div.innerHTML=`<input type="checkbox" class="rate" data-r="${key}" ${on?'checked':''} ${locked?'disabled':''}><span class="rlabel">${label}</span>${qty}<span class="rval" id="rv_${key}">${val}</span>`;
+    box.appendChild(div);
+  });
+})();
+
+// ---- build panel boxes ----
+const car=document.getElementById('car');
+const centerCol=document.createElement('div');   // Haube/Dach/Heck stack (own proportions)
+centerCol.className='center-col';
+const KLEBEN_ALWAYS=[5,6];   // Dachrahmen L/R — Klebetechnik always applies
+GRID_ORDER.forEach(n=>{
+  const [cls,name,thin]=PANELS[n];
+  const klebLock=KLEBEN_ALWAYS.includes(n);
+  const horTick = (n===4) ? `<label class="alubox hor"><input type="checkbox" data-p="4" class="hor">Hor</label>` : '';
+  const neuTick = (n===1) ? `<label class="alubox neu"><input type="checkbox" data-p="1" class="neu">Neu</label>` : '';
+  const d=document.createElement('div');
+  d.className='panel '+cls+(thin?' thin':'');
+  d.innerHTML=`
+    <div class="p-head"><span class="num">${n}</span><span class="p-name">${name}</span><button class="camicon" id="cambtn${n}" title="Take photo of this panel" onclick="document.getElementById('cam${n}').click()">📷</button></div>
+    <div class="row">
+      <div class="fld"><span>Qty</span><input type="number" min="0" step="1" data-p="${n}" class="dents"></div>
+      <div class="fld"><span>Size</span><select data-p="${n}" class="size">${SIZES.map(s=>`<option value="${s}" ${s===20?'selected':''}>${s}</option>`).join('')}</select></div>
+    </div>
+    <div class="chkrow">
+      ${horTick}
+      <label class="alubox"><input type="checkbox" data-p="${n}" class="alu">Alu</label>
+      <label class="alubox kleb"><input type="checkbox" data-p="${n}" class="kleb" ${klebLock?'checked disabled':''}>Kleb</label>
+      <label class="alubox ptp"><input type="checkbox" data-p="${n}" class="ptp">PTP</label>
+      ${neuTick}
+    </div>
+    <input id="cam${n}" type="file" accept="image/*" capture="environment" style="display:none" onchange="photo(${n},this)">
+  `;
+  ([1,2,3,4].includes(n)?centerCol:car).appendChild(d);
+});
+car.appendChild(centerCol);
+
+// ---- recalc / sync boxes -> summary form ----
+function calc(){
+  // derive Marke from the FIN's WMI prefix when Marke is still empty (free, offline)
+  const _vin=document.getElementById('m_vin'), _make=document.getElementById('m_make');
+  if(_make && _vin){
+    const _vinTrim=_vin.value.trim();
+    if(!_make.value.trim() && _vinTrim.length>=3 && _vinTrim!==window.__vinAutoTried){
+      const g=makeFromVin(_vin.value); if(g)_make.value=g;
+    }
+    window.__vinAutoTried=_vinTrim;
+  }
+  // keep the quick €/h box (next to Gesamt AW) mirroring the canonical Stundenlohn field,
+  // whichever one was actually edited — so both, and the Kalkulation doc, always agree
+  const _rq=document.getElementById('m_rate_quick'), _r=document.getElementById('m_rate');
+  if(_rq && _r && document.activeElement!==_rq) _rq.value=_r.value;
+  const DIV=activeDivider();
+  const R=RATE_AW_ALL[DIV];
+  let totalDents=0,panelsUsed=0,totalAWpanels=0,klebPanels=0;
+  GRID_ORDER.forEach(n=>{
+    const dents=parseInt(document.querySelector(`.dents[data-p="${n}"]`).value)||0;
+    const size=parseInt(document.querySelector(`.size[data-p="${n}"]`).value)||0;
+    const card=document.querySelector('.'+PANELS[n][0]);
+    const row=document.getElementById('sumrow'+n);
+
+    // orientation: fixed per panel, but panel 4 can be flipped to horizontal via Hor tick
+    let orient=ORIENT[n];
+    if(n===4){const h=document.querySelector('.hor[data-p="4"]'); if(h&&h.checked)orient='H';}
+    let aw=awLookup(DIV,orient,dents,size);
+
+    // BVAT: surcharges COMPOUND, in order Push-to-Paint -> Aluminium -> Klebetechnik
+    const klebOn=document.querySelector(`.kleb[data-p="${n}"]`).checked || KLEBEN_ALWAYS.includes(n);
+    const aluOn =document.querySelector(`.alu[data-p="${n}"]`).checked;
+    const ptpOn =document.querySelector(`.ptp[data-p="${n}"]`).checked;
+    if(ptpOn)  aw*=SUR.ptp;    // -40%
+    if(aluOn)  aw*=SUR.alu;    // +25%
+    if(klebOn) aw*=SUR.kleb;   // +30% (Dachrahmen always)
+
+    document.getElementById('q'+n).textContent = dents>0?dents:'';
+    document.getElementById('sz'+n).textContent = (dents>0&&size>0)?size:'';
+    document.getElementById('aw'+n).textContent = (dents>0&&size>0)?fmtAW(aw):'';
+
+    if(dents>0){
+      panelsUsed++;totalDents+=dents;totalAWpanels+=aw;
+      if(klebOn)klebPanels++;                      // for the BVAT glue-material flat rate
+      card.classList.add('active');row.classList.add('filled');
+    }else{card.classList.remove('active');row.classList.remove('filled');}
+  });
+  // Finish pro Bauteil qty = number of panels with dents
+  const fq=document.getElementById('finishQty'); if(fq)fq.textContent=panelsUsed;
+  const fn=document.getElementById('finNote'); if(fn)fn.textContent=panelsUsed;
+  // highlight ticked rate items
+  document.querySelectorAll('.rate').forEach(c=>{
+    document.getElementById('rate_'+c.dataset.r).classList.toggle('on',c.checked);
+  });
+
+  // ---- AW totals ----
+  const on=k=>{const c=document.querySelector(`.rate[data-r="${k}"]`);return c&&c.checked;};
+  let sund=0;
+  if(on('ruest'))    sund+=R.ruest;
+  if(on('finish'))   sund+=Math.min(panelsUsed*R.finish, R.finishmax);   // capped at Finish Maximalwert
+  if(on('ueber'))    sund+=R.ueber;
+  if(on('hohl'))     sund+=R.hohl;
+
+  // BVAT flat material costs (EUR net) — separate from AW
+  let mat=0;
+  if(on('hohl')) mat+=MAT.hohl;                                   // €15 cavity protection
+  if(klebPanels>0) mat += klebPanels<=2 ? MAT.kleb_le2 : (klebPanels<=5 ? MAT.kleb_3to5 : MAT.kleb_ge6);
+
+  const fmt=x=>x.toFixed(2).replace('.',',');
+  document.getElementById('awPanels').textContent=fmt(totalAWpanels);
+  document.getElementById('awSund').textContent=fmt(sund);
+  document.getElementById('awGrand').textContent=fmt(totalAWpanels+sund);
+
+  // reflect the active table (10er/12er) in the rate sheet values, notes and badge
+  const setRV=(k,aw)=>{const e=document.getElementById('rv_'+k); if(e)e.textContent=fmt(aw)+' AW';};
+  setRV('ruest',R.ruest);setRV('finish',R.finish);setRV('finishmax',R.finishmax);setRV('ueber',R.ueber);setRV('hohl',R.hohl);
+  const ff=document.getElementById('finFactor'); if(ff)ff.textContent=fmt(R.finish);
+  const fm=document.getElementById('finMax');    if(fm)fm.textContent=fmt(R.finishmax);
+  const bd=document.getElementById('tblBadge');  if(bd)bd.textContent=(DIV==='12'?'Tabelle 12er':'Tabelle 10er');
+  save();
+}
+
+// ---- manual crop modal (used before FIN/VIN OCR — photo can come from the vehicle,
+// a paper form, or any other source, so the user draws a box around just the VIN text) ----
+let _cropImg=null, _cropScale=1, _cropSel=null, _cropCallback=null, _cropDragging=false, _cropDragStart=null;
+function openCropper(dataURL,cb){
+  const img=new Image();
+  img.onload=()=>{
+    _cropImg=img; _cropCallback=cb; _cropSel=null;
+    const canvas=document.getElementById('cropCanvas');
+    const maxW=Math.min(window.innerWidth*0.92,900), maxH=window.innerHeight*0.6;
+    const s=Math.min(maxW/img.naturalWidth, maxH/img.naturalHeight);
+    canvas.width=Math.max(1,Math.round(img.naturalWidth*s));
+    canvas.height=Math.max(1,Math.round(img.naturalHeight*s));
+    _cropScale=s;
+    document.getElementById('cropConfirmBtn').disabled=true;
+    redrawCropper();
+    document.getElementById('cropOverlay').classList.add('show');
+  };
+  img.src=dataURL;
+}
+function redrawCropper(){
+  if(!_cropImg)return;
+  const canvas=document.getElementById('cropCanvas'), ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(_cropImg,0,0,canvas.width,canvas.height);
+  if(_cropSel && _cropSel.w>2 && _cropSel.h>2){
+    ctx.fillStyle='rgba(0,0,0,.55)';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    const{x,y,w,h}=_cropSel;
+    ctx.drawImage(_cropImg, x/_cropScale,y/_cropScale,w/_cropScale,h/_cropScale, x,y,w,h);
+    ctx.strokeStyle='#1565c0'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
+  }
+}
+function hideCropperUI(){ document.getElementById('cropOverlay').classList.remove('show'); }
+function closeCropper(){ hideCropperUI(); _cropCallback=null; _cropImg=null; _cropSel=null; }
+function cropperUseFull(){
+  const cb=_cropCallback, img=_cropImg;
+  hideCropperUI(); _cropCallback=null; _cropImg=null; _cropSel=null;
+  if(cb&&img) cb(img.src);
+}
+function cropperConfirm(){
+  if(!_cropSel||!_cropImg)return;
+  const cb=_cropCallback, img=_cropImg, sel=_cropSel, scale=_cropScale;
+  hideCropperUI(); _cropCallback=null; _cropImg=null; _cropSel=null;
+  const sx=sel.x/scale, sy=sel.y/scale, sw=sel.w/scale, sh=sel.h/scale;
+  const c=document.createElement('canvas');
+  c.width=Math.max(1,Math.round(sw)); c.height=Math.max(1,Math.round(sh));
+  c.getContext('2d').drawImage(img,sx,sy,sw,sh,0,0,c.width,c.height);
+  if(cb) cb(c.toDataURL('image/png'));
+}
+(function initCropperPointerEvents(){
+  const canvas=document.getElementById('cropCanvas'); if(!canvas)return;
+  const toCanvasPt=e=>{
+    const r=canvas.getBoundingClientRect();
+    return {x:(e.clientX-r.left)*(canvas.width/r.width), y:(e.clientY-r.top)*(canvas.height/r.height)};
+  };
+  canvas.addEventListener('pointerdown',e=>{
+    _cropDragStart=toCanvasPt(e); _cropDragging=true;
+    try{canvas.setPointerCapture(e.pointerId);}catch(err){}
+  });
+  canvas.addEventListener('pointermove',e=>{
+    if(!_cropDragging)return;
+    const p=toCanvasPt(e);
+    const x0=Math.min(_cropDragStart.x,p.x), y0=Math.min(_cropDragStart.y,p.y);
+    const x1=Math.max(_cropDragStart.x,p.x), y1=Math.max(_cropDragStart.y,p.y);
+    _cropSel={x:x0,y:y0,w:x1-x0,h:y1-y0};
+    redrawCropper();
+  });
+  canvas.addEventListener('pointerup',()=>{
+    _cropDragging=false;
+    const ok=_cropSel && _cropSel.w>8 && _cropSel.h>8;
+    document.getElementById('cropConfirmBtn').disabled=!ok;
+    if(!ok){ _cropSel=null; redrawCropper(); }
+  });
+})();
+
+// ---- photo (stored in memory, no thumbnail shown) ----
+const PHOTOS={};
+function photo(key,input){
+  const f=input.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    // Store a resized copy, not the raw multi-MB camera original — localStorage has a small
+    // quota (a handful of full-res photos fills it), and a failed save silently loses everything
+    // written in that same call, including typed dent counts. 1600px is still plenty for OCR/AI.
+    resizeDataURL(e.target.result, /^\d+$/.test(key)?720:1600, (stored)=>{
+      PHOTOS[key]=stored;
+      const b=document.getElementById('cambtn'+key);
+      if(b)b.classList.add('has');
+      save();
+      if(key==='marke') aiScan(stored,'front');   // Claude: identify make + color from badge/front
+      if(key==='vin')   openCropper(stored, cropped=>ocrVin(cropped));   // crop to FIN text first, then OCR (falls back to Claude)
+      if(key==='plate') ocrPlate(stored);          // Claude vision if a key is set, else offline OCR (auto-crops on the blue stripe)
+      if(key==='km')    aiScan(stored,'km');       // Claude: read odometer/Kilometerstand (needs API key — too variable a display for offline OCR)
+      if(key==='capture') aiScan(stored,'capture'); // Claude: read a whole form/document photo and autofill everything it finds
+    });
+  };
+  r.readAsDataURL(f);
+}
+
+// ---- AI photo scan (Claude vision) ----
+const CLAUDE_MODEL='claude-sonnet-5';   // swap to 'claude-haiku-4-5-20251001' for cheaper/faster
+function scanStatus(msg,hideAfter){
+  const el=document.getElementById('scanStatus'); if(!el)return;
+  el.textContent=msg||''; el.style.display=msg?'block':'none';
+  if(hideAfter)setTimeout(()=>{el.style.display='none';},hideAfter);
+}
+function resizeDataURL(src,max,cb){
+  const img=new Image();
+  img.onload=()=>{
+    let w=img.width,h=img.height;
+    if(w>max||h>max){const s=max/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s);}
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    c.getContext('2d').drawImage(img,0,0,w,h);
+    cb(c.toDataURL('image/jpeg',0.82));
+  };
+  // without this, picking a non-image file (a PDF is the common case -- browsers let
+  // an <input accept="image/*"> pick one anyway on some devices) left onload never
+  // firing and nothing listening for the failure either -- totally silent hang, no
+  // status message, nothing filled (reported 2026-09-04)
+  img.onerror=()=>{ scanStatus('Datei ist kein lesbares Bild (PDF wird nicht unterstützt) — bitte ein Foto oder einen Screenshot wählen',7000); };
+  img.src=src;
+}
+// ---- offline OCR for the number plate (Tesseract.js, runs in the browser) ----
+function loadTesseract(cb){
+  if(window.Tesseract) return cb();
+  scanStatus('OCR wird geladen…');
+  const s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+  s.onload=()=>cb();
+  s.onerror=()=>scanStatus('OCR konnte nicht geladen werden',4000);
+  document.head.appendChild(s);
+}
+// grayscale + contrast-stretch: cheap but effective boost for OCR accuracy,
+// especially against reflective plates and the deliberately hard-to-read FE-Schrift font.
+function preprocessForOcr(dataURL,maxW,cb){
+  const img=new Image();
+  img.onload=()=>{
+    let w=img.width,h=img.height;
+    if(w>maxW){const s=maxW/w;w=Math.round(w*s);h=Math.round(h*s);}
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    const ctx=c.getContext('2d');
+    ctx.drawImage(img,0,0,w,h);
+    const id=ctx.getImageData(0,0,w,h),d=id.data;
+    let min=255,max=0;
+    const gray=new Float32Array(w*h);
+    for(let i=0,p=0;i<d.length;i+=4,p++){
+      const g=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+      gray[p]=g; if(g<min)min=g; if(g>max)max=g;
+    }
+    const range=Math.max(1,max-min);
+    for(let i=0,p=0;i<d.length;i+=4,p++){
+      const v=Math.min(255,Math.max(0,(gray[p]-min)*255/range));
+      d[i]=d[i+1]=d[i+2]=v;
+    }
+    ctx.putImageData(id,0,0);
+    cb(c.toDataURL('image/png'));
+  };
+  img.onerror=()=>cb(dataURL);
+  img.src=dataURL;
+}
+
+// German/EU plates have a solid blue stripe (stars + "D") at the LEFT edge of the plate.
+// Detecting it and cropping to everything to its right isolates the actual plate characters
+// from background clutter (grille, badges, pavement) — the single biggest source of bad reads
+// on a full, uncropped bumper photo. Falls back to the original photo untouched if no
+// confident blue stripe is found (bad angle, glare, no plate in frame, etc).
+function detectAndCropPlate(dataURL,cb){
+  const img=new Image();
+  img.onload=()=>{
+    const ow=img.width, oh=img.height;
+    const detW=Math.min(700,ow), scale=detW/ow, detH=Math.round(oh*scale);
+    if(detW<10||detH<10){ cb(dataURL,false); return; }
+    const dc=document.createElement('canvas'); dc.width=detW; dc.height=detH;
+    const dctx=dc.getContext('2d'); dctx.drawImage(img,0,0,detW,detH);
+    const d=dctx.getImageData(0,0,detW,detH).data;
+    const w=detW,h=detH;
+    const mask=new Uint8Array(w*h);
+    for(let i=0,p=0;i<d.length;i+=4,p++){
+      const r=d[i],g=d[i+1],b=d[i+2];
+      mask[p]=(b>r+25&&b>g+10&&b>70&&b<235&&r<160)?1:0;
+    }
+    // dilate ~6px (4-connectivity) so the stars/"D" holes inside the stripe merge into one solid blob
+    let cur=mask;
+    for(let it=0;it<6;it++){
+      const nxt=new Uint8Array(w*h);
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+        const p=y*w+x;
+        if(cur[p]){nxt[p]=1;continue;}
+        nxt[p]=((x>0&&cur[p-1])||(x<w-1&&cur[p+1])||(y>0&&cur[p-w])||(y<h-1&&cur[p+w]))?1:0;
+      }
+      cur=nxt;
+    }
+    // connected components (4-connectivity, iterative flood fill)
+    const labels=new Int32Array(w*h).fill(-1);
+    const stack=new Int32Array(w*h);
+    const comps=[];
+    for(let p0=0;p0<w*h;p0++){
+      if(!cur[p0]||labels[p0]!==-1) continue;
+      let sp=0; stack[sp++]=p0; labels[p0]=1;
+      let x0=w,x1=0,y0=h,y1=0;
+      while(sp>0){
+        const q=stack[--sp]; const qx=q%w, qy=(q/w)|0;
+        if(qx<x0)x0=qx; if(qx>x1)x1=qx; if(qy<y0)y0=qy; if(qy>y1)y1=qy;
+        if(qx>0){const n=q-1; if(cur[n]&&labels[n]===-1){labels[n]=1;stack[sp++]=n;}}
+        if(qx<w-1){const n=q+1; if(cur[n]&&labels[n]===-1){labels[n]=1;stack[sp++]=n;}}
+        if(qy>0){const n=q-w; if(cur[n]&&labels[n]===-1){labels[n]=1;stack[sp++]=n;}}
+        if(qy<h-1){const n=q+w; if(cur[n]&&labels[n]===-1){labels[n]=1;stack[sp++]=n;}}
+      }
+      comps.push({x0,x1,y0,y1});
+    }
+    // pick the tallest component shaped like a plate's blue stripe (tall, narrow, in left ~60%)
+    let best=null;
+    for(const c of comps){
+      const bw=c.x1-c.x0, bh=c.y1-c.y0;
+      if(bw<=0||bh<=0) continue;
+      let origCount=0;
+      for(let y=c.y0;y<=c.y1;y++)for(let x=c.x0;x<=c.x1;x++) if(mask[y*w+x]) origCount++;
+      const fill=origCount/(bw*bh);
+      if(bh>bw*1.2 && bw<w*0.25 && bh>h*0.05 && fill>0.08 && c.x1<w*0.6){
+        if(!best || bh>(best.y1-best.y0)) best=c;
+      }
+    }
+    if(!best){ cb(dataURL,false); return; }
+    const inv=1/scale;
+    const bx1=best.x1*inv, by0=best.y0*inv, by1=best.y1*inv;
+    const bh=by1-by0, marginY=bh*0.08;
+    const cropY0=Math.max(0,by0-marginY), cropY1=Math.min(oh,by1+marginY);
+    const cropX0=bx1, cropX1=Math.min(ow, bx1 + bh*5.5); // plate extends right of stripe roughly ~4.5-5x its height; clamped to image edge
+    if(cropX1-cropX0<20 || cropY1-cropY0<10){ cb(dataURL,false); return; }
+    const cc=document.createElement('canvas');
+    cc.width=Math.round(cropX1-cropX0); cc.height=Math.round(cropY1-cropY0);
+    cc.getContext('2d').drawImage(img,cropX0,cropY0,cropX1-cropX0,cropY1-cropY0,0,0,cc.width,cc.height);
+    cb(cc.toDataURL('image/png'),true);
+  };
+  img.onerror=()=>cb(dataURL,false);
+  img.src=dataURL;
+}
+
+// explicit worker API (not the Tesseract.recognize() shorthand) so we can restrict the
+// character set and page-segmentation mode — both meaningfully improve plate/VIN accuracy —
+// and so real errors surface instead of failing silently.
+async function runOcr(imgDataURL,charWhitelist,psm){
+  const worker=await Tesseract.createWorker('eng');
+  try{
+    await worker.setParameters({tessedit_char_whitelist:charWhitelist,tessedit_pageseg_mode:psm||'11'});
+    const {data}=await worker.recognize(imgDataURL);
+    return data.text||'';
+  } finally {
+    await worker.terminate();
+  }
+}
+
+function ocrPlate(dataURL){
+  // Tesseract (offline) frequently misreads the German security font (FE-Schrift) — and worse,
+  // it can misread it *confidently* (a plausible-but-wrong match), not just fail outright. If an
+  // Anthropic key is already set, use Claude vision directly — it reads real-world plate photos
+  // far more reliably. Tesseract stays as the free/offline path when no key is configured.
+  const key=(document.getElementById('aiKey').value||'').trim();
+  if(key){ aiScan(dataURL,'plate'); return; }
+  loadTesseract(()=>{
+    scanStatus('Kennzeichen wird gelesen…');
+    detectAndCropPlate(dataURL,(focused,cropped)=>{
+    preprocessForOcr(focused,1800,async(proc)=>{
+      try{
+        // a confident blue-stripe crop is a clean single line -> psm 7; otherwise fall back
+        // to sparse-text mode (11) since we're still searching the whole scene
+        const raw0=await runOcr(proc,'ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ0123456789- ', cropped?'7':'11');
+        const raw=raw0.toUpperCase().replace(/[^A-ZÄÖÜ0-9\s-]/g,' ').replace(/\s+/g,' ').trim();
+        // German plate: 1-3 letters (district) + 1-2 letters + 1-4 digits
+        const mm=raw.match(/\b([A-ZÄÖÜ]{1,3})[\s-]*([A-ZÄÖÜ]{1,2})[\s-]*(\d{1,4})\b/);
+        if(mm){
+          document.getElementById('m_plate').value=`${mm[1]}-${mm[2]} ${mm[3]}`;
+          calc(); scanStatus('Kennzeichen ✓ (Tesseract — bitte prüfen)',3500);
+        }else if(raw){
+          scanStatus(`Kennzeichen unklar — gelesen: "${raw.slice(0,28)}". Bitte prüfen/eintragen, oder Anthropic API-Key oben eintragen für bessere Erkennung.`,8000);
+        }else{
+          scanStatus('Kennzeichen nicht erkannt — bitte manuell eintragen, oder Anthropic API-Key oben eintragen für bessere Erkennung.',7000);
+        }
+      }catch(e){ scanStatus('OCR-Fehler: '+(e&&e.message?e.message:e),5000); }
+    });
+    });
+  });
+}
+
+function ocrVin(dataURL){
+  loadTesseract(()=>{
+    scanStatus('FIN wird gelesen…');
+    preprocessForOcr(dataURL,2000,async(proc)=>{
+      const fallback=(rawShown)=>{
+        const key=(document.getElementById('aiKey').value||'').trim();
+        const suffix=rawShown?` (gelesen: "${rawShown}")`:'';
+        if(key){ scanStatus('OCR unklar'+suffix+' — frage Claude…',3000); aiScan(dataURL,'fin'); }
+        else scanStatus('FIN nicht erkannt'+suffix+' — bitte manuell eintragen',6500);
+      };
+      try{
+        const raw0=await runOcr(proc,'ABCDEFGHJKLMNPRSTUVWXYZ0123456789');
+        const raw=raw0.toUpperCase().replace(/[^A-Z0-9]/g,'');
+        // VIN = 17 chars; the alphabet excludes I, O and Q
+        const mm=raw.match(/[A-HJ-NPR-Z0-9]{17}/);
+        if(mm){
+          document.getElementById('m_vin').value=mm[0];
+          calc(); scanStatus('FIN ✓ (OCR)',2500);
+        }else fallback(raw.slice(0,20));
+      }catch(e){ fallback(); }
+    });
+  });
+}
+
+function aiScan(dataURL,kind){
+  const key=(document.getElementById('aiKey').value||'').trim();
+  if(!key){scanStatus('⚙ Bitte zuerst Anthropic API-Key eingeben (AI-Scan).',4000);return;}
+  scanStatus(kind==='front'?'Marke & Farbe werden erkannt…':kind==='plate'?'Frage Claude nach dem Kennzeichen…':kind==='km'?'Kilometerstand wird gelesen…':kind==='capture'?'Formular wird gelesen…':'Scanne FIN…');
+  const prompt = kind==='front'
+    ? 'This image shows the front of a car. Identify the car manufacturer (make) from the badge/logo, and the car\'s exterior paint color, named simply in German (e.g. "Schwarz", "Weiß", "Silber", "Blau", "Grau metallic"). Reply with ONLY compact JSON, no prose: {"make":"","color":""}. Use an empty string for any field you are unsure of.'
+    : kind==='plate'
+    ? 'This image shows a German/European vehicle license plate (Kennzeichen), possibly cropped tightly or shown among other background. Read the plate text exactly as printed (district letters, then the letter/number code, e.g. "AA-CM 197"). Ignore the blue EU stripe and any round inspection seal between the letter and number groups — those are not part of the plate text. Reply with ONLY compact JSON, no prose: {"plate":""}. Empty string if unreadable.'
+    : kind==='km'
+    ? 'This image shows a car\'s odometer / instrument cluster / trip computer display showing the total mileage (Kilometerstand / Laufleistung). Read the total mileage number shown, digits only, no units, no dots/commas/spaces. If it looks like miles rather than km (e.g. a UK/US style cluster), still just return the digits shown — do not convert. Reply with ONLY compact JSON, no prose: {"km":""}. Empty string if unreadable.'
+    : kind==='capture'
+    ? 'This image shows a form, document, or information sheet that may contain vehicle and/or customer details — e.g. an insurance assessment sheet, handover form, dealer paperwork, or a hand-written note. It is NOT necessarily a photo of the vehicle itself. Extract every field below that you can actually find written on it; do not guess or invent values. Keys: "kunde" (customer/owner name), "make" (car manufacturer), "model" (car model), "plate" (license plate / Kennzeichen exactly as printed), "vin" (17-character VIN/FIN), "color" (exterior paint color, simple German word), "km" (odometer/mileage, digits only, no units/punctuation), "erstzulassung" (first registration date, formatted strictly as YYYY-MM-DD if a date is present, else empty). Reply with ONLY compact JSON, no prose, using exactly these keys: {"kunde":"","make":"","model":"","plate":"","vin":"","color":"","km":"","erstzulassung":""}. Empty string for anything not present.'
+    : 'Read the 17-character Vehicle Identification Number (VIN / FIN) shown in this image (letters and digits, no I/O/Q). Reply with ONLY compact JSON, no prose: {"vin":""}. Empty string if unreadable.';
+  resizeDataURL(dataURL,kind==='capture'?1600:1024,async(small)=>{
+    try{
+      const res=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{
+          'content-type':'application/json',
+          'x-api-key':key,
+          'anthropic-version':'2023-06-01',
+          'anthropic-dangerous-direct-browser-access':'true'
+        },
+        body:JSON.stringify({
+          model:CLAUDE_MODEL,
+          max_tokens:300,
+          messages:[{role:'user',content:[
+            {type:'image',source:{type:'base64',media_type:'image/jpeg',data:small.split(',')[1]}},
+            {type:'text',text:prompt}
+          ]}]
+        })
+      });
+      const j=await res.json();
+      if(!res.ok){scanStatus('AI-Fehler: '+((j.error&&j.error.message)||res.status),6000);return;}
+      let txt='';
+      try{txt=(j.content||[]).map(p=>p.text||'').join('');}catch(e){}
+      const mm=txt.match(/\{[\s\S]*\}/);
+      const data=mm?JSON.parse(mm[0]):{};
+      if(kind==='front'){
+        if(data.make)  document.getElementById('m_make').value=data.make;
+        if(data.color) document.getElementById('m_farbe').value=data.color;
+        if(data.plate) document.getElementById('m_plate').value=data.plate;
+      }else if(kind==='plate'){
+        if(data.plate){
+          const raw=String(data.plate).toUpperCase().replace(/[^A-ZÄÖÜ0-9\s-]/g,' ').replace(/\s+/g,' ').trim();
+          const mm=raw.match(/\b([A-ZÄÖÜ]{1,3})[\s-]*([A-ZÄÖÜ]{1,2})[\s-]*(\d{1,4})\b/);
+          document.getElementById('m_plate').value = mm ? `${mm[1]}-${mm[2]} ${mm[3]}` : raw;
+        }
+      }else if(kind==='km'){
+        if(data.km){
+          const digits=String(data.km).replace(/[^\d]/g,'');
+          if(digits) document.getElementById('m_km').value=digits;
+        }
+      }else if(kind==='capture'){
+        if(data.kunde)  document.getElementById('m_kunde').value=data.kunde;
+        if(data.make)   document.getElementById('m_make').value=data.make;
+        if(data.model)  document.getElementById('m_model').value=data.model;
+        if(data.color)  document.getElementById('m_farbe').value=data.color;
+        if(data.km){
+          const digits=String(data.km).replace(/[^\d]/g,'');
+          if(digits) document.getElementById('m_km').value=digits;
+        }
+        if(data.vin)    document.getElementById('m_vin').value=String(data.vin).toUpperCase().replace(/\s+/g,'');
+        if(data.plate){
+          const raw=String(data.plate).toUpperCase().replace(/[^A-ZÄÖÜ0-9\s-]/g,' ').replace(/\s+/g,' ').trim();
+          const pm=raw.match(/\b([A-ZÄÖÜ]{1,3})[\s-]*([A-ZÄÖÜ]{1,2})[\s-]*(\d{1,4})\b/);
+          document.getElementById('m_plate').value = pm ? pm[1]+'-'+pm[2]+' '+pm[3] : raw;
+        }
+        if(data.erstzulassung && /^\d{4}-\d{2}-\d{2}$/.test(data.erstzulassung)){
+          const el=document.getElementById('m_erst'); if(el) el.value=data.erstzulassung;
+        }
+        const foundN=['kunde','make','model','color','km','vin','plate','erstzulassung'].filter(k=>data[k]).length;
+        // show what Claude actually replied when nothing usable came back -- a plain
+        // "nothing found" message with no detail was impossible to debug (2026-09-04)
+        scanStatus(foundN?('Formular gelesen ✓ — '+foundN+' Feld(er) ausgefüllt, bitte prüfen'):('Nichts erkannt — Claude sagte: '+(txt||'(leere Antwort)').slice(0,180)),9000);
+        calc(); save();
+        return;
+      }else{
+        if(data.vin)   document.getElementById('m_vin').value=String(data.vin).toUpperCase().replace(/\s+/g,'');
+      }
+      calc();
+      scanStatus('Fertig ✓',2500);
+    }catch(e){scanStatus('Scan fehlgeschlagen: '+((e&&e.message)||e),6000); console.error('aiScan error:',e);}
+  });
+}
+
+// ---- generate the emailable Kalkulation document ----
+function buildDoc(){
+  const DIV=activeDivider();
+  const R=RATE_AW_ALL[DIV];
+  const div=(DIV==='12'?12:10);
+  const rate=parseFloat(document.getElementById('m_rate').value)||0;
+  const awEuro=rate/div;
+  const de=x=>x.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const eur=x=>de(x)+' EUR';
+  const val=id=>(document.getElementById(id).value||'').trim();
+
+  // ---- panels ----
+  let rows='',pdrAW=0,panelsUsed=0,klebPanels=0; const panelData=[];
+  GRID_ORDER.forEach(n=>{
+    const dents=parseInt(document.querySelector(`.dents[data-p="${n}"]`).value)||0;
+    if(!dents)return;
+    const size=parseInt(document.querySelector(`.size[data-p="${n}"]`).value)||0;
+    let orient=ORIENT[n];
+    if(n===4){const h=document.querySelector('.hor[data-p="4"]');if(h&&h.checked)orient='H';}
+    let aw=awLookup(DIV,orient,dents,size);
+    const kleb=document.querySelector(`.kleb[data-p="${n}"]`).checked||KLEBEN_ALWAYS.includes(n);
+    const alu=document.querySelector(`.alu[data-p="${n}"]`).checked;
+    const ptp=document.querySelector(`.ptp[data-p="${n}"]`).checked;
+    if(ptp)aw*=SUR.ptp; if(alu)aw*=SUR.alu; if(kleb)aw*=SUR.kleb;
+    pdrAW+=aw;panelsUsed++; if(kleb)klebPanels++;
+    const neuEl=document.querySelector(`.neu[data-p="${n}"]`);
+    const neuTxt=(neuEl&&neuEl.checked)?' <b>(Neu)</b>':'';
+    rows+=`<tr><td>${n}</td><td>${PANELS[n][1].replace(/­/g,'')}${neuTxt}</td><td class="c">${dents}</td><td class="c">${size||''}</td>`+
+          `<td class="c">${kleb?'✓':''}</td><td class="c">${alu?'✓':''}</td><td class="c">${ptp?'✓':''}</td>`+
+          `<td class="r">${de(aw)} AW</td><td class="r">${eur(aw*awEuro)}</td></tr>`;
+    panelData.push({n,name:PANELS[n][1].replace(/­/g,'')+(neuTxt?' (Neu)':''),dents,size,kleb,alu,ptp,aw,eur:aw*awEuro});
+  });
+  if(panelsUsed===0){alert('Bitte zuerst Dellen erfassen.');return null;}
+
+  const on=k=>{const c=document.querySelector(`.rate[data-r="${k}"]`);return c&&c.checked;};
+  const pdrEur=pdrAW*awEuro;
+  const vorbAW=R.ruest, vorbEur=vorbAW*awEuro;
+  const finAW=Math.min(panelsUsed*R.finish,R.finishmax), finEur=finAW*awEuro;
+  const ueberOn=on('ueber'),   ueberAW=ueberOn?R.ueber:0,    ueberEur=ueberAW*awEuro;      // in PDR block
+  const verb=0.02*(pdrEur+vorbEur+ueberEur+finEur);   // Verbrauchsmaterial 2% of net PDR labour
+  const pdrGesamt=pdrEur+vorbEur+ueberEur+finEur+verb;
+
+  const labourRow=(l,aw,e)=>`<tr class="subrow"><td colspan="7">${l}</td><td class="r">${de(aw)} AW</td><td class="r">${eur(e)}</td></tr>`;
+  let extra='';
+  if(ueberOn) extra+=labourRow('Übergreifzone',ueberAW,ueberEur);
+
+  // Zusatzleistungen = Hohlraumkonservierung only (matches the user's document)
+  let zRows='',zSum=0; const hohlOn=on('hohl');
+  if(hohlOn){const e=R.hohl*awEuro;zSum+=e;zRows=`<tr><td>Hohlraumkons.</td><td class="r">${de(R.hohl)} AW</td><td class="r">${eur(e)}</td></tr>`;}
+
+  // Kleinunternehmer (§19 UStG) — no VAT is charged, so there is no Netto/MwSt/Brutto split,
+  // just a single final Gesamtbetrag, plus the required statutory notice on the document.
+  const gesamt=pdrGesamt+zSum;
+
+  // photos are no longer embedded here — they travel as separate email attachments (2026-09-03)
+
+  // filled values print as text; empty ones print a blank line to write on
+  const col1=[['Adresse',val('m_adresse')],['PLZ/Stadt',val('m_plz')]];
+  const col2=[['Hersteller/Modell',[val('m_make'),val('m_model')].filter(Boolean).join(' ')],['Kennzeichen',val('m_plate')],['FIN',val('m_vin')],['Farbe',val('m_farbe')],['Laufleistung',val('m_km')],['Erstzulassung',val('m_erst')],['WBW / Restwert','']];
+  const col3=[['Protokollnummer',val('m_protokoll')],['Begutachtungsdatum',val('m_date')],['Rechnungsnummer',val('m_rechnung')],['Auftragsnummer',val('m_auftrag')],['Sachbearbeiter',val('m_sachb')]];
+  const hdrRowN=Math.max(col1.length,col2.length,col3.length);
+  const hdrCell=(pair)=>{ if(!pair) return '<td class="lbl"></td><td class="val"></td>'; const [l,v]=pair; return `<td class="lbl">${l}</td><td class="val${v?'':' fill'}">${v||''}</td>`; };
+  let hdrRows='';
+  for(let i=0;i<hdrRowN;i++) hdrRows+=`<tr>${hdrCell(col1[i])}${hdrCell(col2[i])}${hdrCell(col3[i])}</tr>`;
+  const doc=`<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Kalkulation</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;color:#111;font-size:12px;margin:24px;}
+  h1{font-size:22px;margin:0 0 2px;text-align:center;letter-spacing:1px}
+  .sub{text-align:center;color:#555;margin-bottom:16px}
+  table.hdr3{width:100%;border-collapse:collapse;margin-bottom:14px;font-size:11px;table-layout:fixed}
+  table.hdr3 td{padding:1px 10px 1px 0;vertical-align:top}
+  table.hdr3 td.lbl{color:#555;width:15%;font-weight:normal;white-space:nowrap}
+  table.hdr3 td.val{font-weight:bold;width:18.3%;word-break:break-word;overflow-wrap:break-word}
+  table.hdr3 td.val.fill{height:11px}
+  h2{font-size:14px;margin:16px 0 4px}
+  .subttl{color:#555;font-size:11px;margin:0 0 6px}
+  table.calc{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+  table.calc tr, .sumtbl tr, table.hdr3 tr{page-break-inside:avoid;break-inside:avoid}
+  table.calc th,table.calc td{border:1px solid #bbb;padding:4px 6px}
+  table.calc th{background:#eee;text-align:left;font-size:11px}
+  td.c{text-align:center}td.r{text-align:right}
+  tr.tot td{font-weight:bold;background:#f5f5f5}
+  tr.subrow td{font-weight:normal;font-size:10px;background:#f5f5f5;color:#444;text-align:left}
+  .noborder td{border:0;padding:3px 6px}
+  .sumtbl{width:60%;margin-left:auto;border-collapse:collapse;margin-top:6px}
+  .sumtbl td{padding:4px 6px}
+  .sumtbl tr.net td,.sumtbl tr.br td{font-weight:bold;border-top:1px solid #999}
+  .sumtbl tr.br td{font-size:15px;border-top:2px solid #333}
+  .disc{font-size:10px;color:#555;margin-top:22px;line-height:1.5}
+  /* photo appendix removed 2026-09-03 — photos now travel as separate email attachments */
+  @media print{.noprint{display:none}}
+  .noprint{text-align:center;margin-bottom:14px}
+  .noprint button{font-size:14px;padding:8px 18px;border:0;border-radius:6px;background:#1565c0;color:#fff;font-weight:bold;cursor:pointer}
+</style></head><body>
+<div class="noprint"><button onclick="window.print()">Drucken / als PDF speichern</button></div>
+<h1>Kalkulation</h1>
+<div class="sub">Lackschadenfreie Dellenreparatur (BVAT)</div>
+<table class="hdr3"><tbody>${hdrRows}</tbody></table>
+<div class="subttl">Stundenlohn: ${de(rate)} EUR/h · ${div} AW = 1 h · Tabelle ${div}er</div>
+<table class="calc">
+  <thead><tr><th>Pos.</th><th>Bauteil</th><th>Dellen</th><th>Größe</th><th>Zug</th><th>Alu</th><th>PTP</th><th>AW</th><th>Summe</th></tr></thead>
+  <tbody>
+    ${rows}
+    <tr class="tot"><td colspan="7">PDR</td><td class="r">${de(pdrAW)} AW</td><td class="r">${eur(pdrEur)}</td></tr>
+    <tr class="subrow"><td colspan="7">Vorbereitung</td><td class="r">${de(vorbAW)} AW</td><td class="r">${eur(vorbEur)}</td></tr>
+    ${extra}
+    <tr class="subrow"><td colspan="7">Finish</td><td class="r">${de(finAW)} AW</td><td class="r">${eur(finEur)}</td></tr>
+    <tr class="subrow"><td colspan="7">Verbrauchsmaterial 2,00 %</td><td></td><td class="r">${eur(verb)}</td></tr>
+    <tr class="tot"><td colspan="7">Gesamtbetrag PDR</td><td></td><td class="r">${eur(pdrGesamt)}</td></tr>
+  </tbody>
+</table>
+${zRows?`<h2>Zusatzleistungen</h2>
+<table class="calc"><thead><tr><th>Dienstleistung</th><th>AW</th><th>Betrag</th></tr></thead><tbody>${zRows}
+<tr class="tot"><td>Gesamtbetrag</td><td></td><td class="r">${eur(zSum)}</td></tr></tbody></table>`:''}
+<h2>Zusammenfassung</h2>
+<table class="sumtbl">
+  <tr><td>PDR</td><td class="r">${eur(pdrGesamt)}</td></tr>
+  ${zSum?`<tr><td>Zusatzleistungen</td><td class="r">${eur(zSum)}</td></tr>`:''}
+  <tr class="br"><td>Gesamtbetrag</td><td class="r">${eur(gesamt)}</td></tr>
+</table>
+<p class="disc">Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerregelung).</p>
+<p class="disc">Es wird keine Haftung für Vorschäden (z.B. Kratzer, Parkschäden), technische Mängel und für die im Fahrzeug liegenden Gegenstände übernommen. Bei der Reparatur können ggf. zusätzliche Demontagearbeiten erfolgen. Wichtig: Bei schlechten Arbeitsbedingungen (verschmutzte, nasse Oberflächen sowie schlechte Lichtverhältnisse) kann eine Bewertungskorrektur erfolgen.</p>
+</body></html>`;
+
+  const nm='Kalkulation_'+((val('m_plate')||val('m_vin')||'PDR').replace(/[^A-Za-z0-9\-]/g,'')||'PDR');
+  const data={div,DIV,rate,awEuro,panels:panelData,pdrAW,pdrEur,vorbAW,vorbEur,ueberOn,ueberAW,ueberEur,finAW,finEur,verb,pdrGesamt,hohlOn,hohlAW:R.hohl,hohlEur:(hohlOn?R.hohl*awEuro:0),zSum,gesamt,header:{col1,col2,col3},name:nm};
+  return {html:doc,name:nm,data};
+}
+
+// open in a new tab (print / save as PDF)
+function genDoc(){
+  const d=buildDoc(); if(!d)return;
+  const w=window.open('','_blank');
+  if(!w){alert('Popup blockiert — bitte Popups für diese Seite erlauben.');return;}
+  w.document.write(d.html); w.document.close();
+}
+
+// build a PDF and hand it to the phone's share sheet (→ e-mail with attachment)
+function loadHtml2Pdf(cb){
+  if(window.html2pdf) return cb();
+  scanStatus('PDF-Modul wird geladen…');
+  const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+  s.onload=()=>cb();
+  s.onerror=()=>scanStatus('PDF-Modul konnte nicht geladen werden',4000);
+  document.head.appendChild(s);
+}
+// converts a captured photo's data URL into a real File object so it can ride along
+// as its own email attachment (2026-09-03)
+function dataURLtoFile(dataURL, filename){
+  const mime=(dataURL.match(/^data:(.*?);base64,/)||[])[1]||'image/jpeg';
+  const b64=dataURL.slice(dataURL.indexOf(',')+1);
+  const bin=atob(b64);
+  const bytes=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  return new File([bytes], filename, {type:mime});
+}
+function loadJsPdfAutoTable(cb){
+  if(window.jspdf && window.jspdf.jsPDF && window.__autoTableReady){ cb(); return; }
+  const s1=document.createElement('script');
+  s1.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+  s1.onload=function(){
+    const s2=document.createElement('script');
+    s2.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js';
+    s2.onload=function(){ window.__autoTableReady=true; cb(); };
+    s2.onerror=function(){ scanStatus('PDF-Bibliothek fehlgeschlagen',4000); };
+    document.head.appendChild(s2);
+  };
+  s1.onerror=function(){ scanStatus('PDF-Bibliothek fehlgeschlagen',4000); };
+  document.head.appendChild(s1);
+}
+
+// Builds the emailed PDF with jsPDF + autoTable -- real vector text/lines/tables,
+// never a DOM screenshot. html2canvas rasterization produced five separate
+// cross-browser layout bugs in this file (0-height canvas, blank canvas from DOM
+// injection, flex/inline-block collapse, table column drift on iOS Safari, and
+// borders rendering wrong on subtotal rows) -- this path sidesteps that whole class
+// of bug because nothing is ever rasterized; every browser draws the same PDF bytes.
+function buildPdfBlob(d){
+  const jsPDF = window.jspdf.jsPDF;
+  const doc = new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
+  const pageW = doc.internal.pageSize.getWidth();
+  const margin = 12;
+  let y = 16;
+  const de = x=>x.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const eur = x=>de(x)+' EUR';
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(20);
+  doc.text('Kalkulation', pageW/2, y, {align:'center'}); y+=6;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(90);
+  doc.text('Lackschadenfreie Dellenreparatur (BVAT)', pageW/2, y, {align:'center'});
+  doc.setTextColor(0);
+  y+=8;
+
+  const col1=d.header.col1, col2=d.header.col2, col3=d.header.col3;
+  const hn=Math.max(col1.length,col2.length,col3.length);
+  const headBody=[];
+  for(let i=0;i<hn;i++){
+    const c1=col1[i]||['',''], c2=col2[i]||['',''], c3=col3[i]||['',''];
+    headBody.push([c1[0]||'', c1[1]||'', c2[0]||'', c2[1]||'', c3[0]||'', c3[1]||'']);
+  }
+  const colW1=26, colW2=36, colW3=30, colW4=36, colW5=30;
+  const colW6=pageW-2*margin-colW1-colW2-colW3-colW4-colW5;
+  doc.autoTable({
+    startY:y, margin:{left:margin,right:margin}, body:headBody, theme:'plain',
+    styles:{fontSize:9,cellPadding:{top:0.7,bottom:0.7,left:0,right:2},overflow:'linebreak'},
+    columnStyles:{
+      0:{textColor:[85,85,85],cellWidth:colW1}, 1:{fontStyle:'bold',cellWidth:colW2},
+      2:{textColor:[85,85,85],cellWidth:colW3}, 3:{fontStyle:'bold',cellWidth:colW4},
+      4:{textColor:[85,85,85],cellWidth:colW5}, 5:{fontStyle:'bold',cellWidth:colW6}
+    }
+  });
+  y = doc.lastAutoTable.finalY + 4;
+
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(0);
+  doc.text('Stundenlohn: '+de(d.rate)+' EUR/h \u00b7 '+d.div+' AW = 1 h \u00b7 Tabelle '+d.div+'er', margin, y);
+  y += 4;
+
+  const grayFill=[245,245,245];
+  const panelBody = d.panels.map(function(p){
+    return [p.n, p.name, p.dents, p.size||'', p.kleb?'X':'', p.alu?'X':'', p.ptp?'X':'', de(p.aw)+' AW', eur(p.eur)];
+  });
+  function totRow(label,aw,e,bold){
+    const st = bold?{fontStyle:'bold',fillColor:grayFill}:{fontSize:8,textColor:[68,68,68],fillColor:grayFill};
+    const rst = Object.assign({halign:'right'},st);
+    return [ {content:label,colSpan:7,styles:st}, {content:(aw!==null?de(aw)+' AW':''),styles:rst}, {content:eur(e),styles:rst} ];
+  }
+  panelBody.push(totRow('PDR', d.pdrAW, d.pdrEur, true));
+  panelBody.push(totRow('Vorbereitung', d.vorbAW, d.vorbEur, false));
+  if(d.ueberOn) panelBody.push(totRow('\u00dcbergreifzone', d.ueberAW, d.ueberEur, false));
+  panelBody.push(totRow('Finish', d.finAW, d.finEur, false));
+  panelBody.push(totRow('Verbrauchsmaterial 2,00 %', null, d.verb, false));
+  panelBody.push(totRow('Gesamtbetrag PDR', null, d.pdrGesamt, true));
+
+  doc.autoTable({
+    startY:y, margin:{left:margin,right:margin},
+    head:[['Pos.','Bauteil','Dellen','Gr\u00f6\u00dfe','Zug','Alu','PTP','AW','Summe']],
+    body: panelBody, theme:'grid',
+    styles:{fontSize:8.5, cellPadding:1.6, lineColor:[187,187,187], lineWidth:0.1, overflow:'linebreak'},
+    headStyles:{fillColor:[238,238,238], textColor:0, fontStyle:'bold'},
+    columnStyles:{
+      0:{cellWidth:11}, 2:{cellWidth:14,halign:'center'}, 3:{cellWidth:14,halign:'center'},
+      4:{cellWidth:10,halign:'center'}, 5:{cellWidth:10,halign:'center'}, 6:{cellWidth:10,halign:'center'},
+      7:{halign:'right',cellWidth:22}, 8:{halign:'right',cellWidth:26}
+    }
+  });
+  y = doc.lastAutoTable.finalY + 6;
+
+  const pageH = doc.internal.pageSize.getHeight();
+  if(d.zSum){
+    if(y > pageH-50){ doc.addPage(); y = margin; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(0);
+    doc.text('Zusatzleistungen', margin, y); y+=2;
+    const zBody=[];
+    if(d.hohlOn) zBody.push(['Hohlraumkons.', de(d.hohlAW)+' AW', eur(d.hohlEur)]);
+    zBody.push([{content:'Gesamtbetrag',styles:{fontStyle:'bold'}}, '', {content:eur(d.zSum),styles:{fontStyle:'bold',halign:'right'}}]);
+    doc.autoTable({
+      startY:y+2, margin:{left:margin,right:margin},
+      head:[['Dienstleistung','AW','Betrag']], body:zBody, theme:'grid',
+      styles:{fontSize:8.5, cellPadding:1.6, lineColor:[187,187,187], lineWidth:0.1},
+      headStyles:{fillColor:[238,238,238], textColor:0, fontStyle:'bold'},
+      columnStyles:{1:{halign:'right'},2:{halign:'right'}}
+    });
+    y = doc.lastAutoTable.finalY + 6;
+  }
+
+  if(y > pageH-55){ doc.addPage(); y = margin; }
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(0);
+  doc.text('Zusammenfassung', margin, y); y+=6;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10);
+  const sumX = pageW-margin-70;
+  doc.text('PDR', sumX, y); doc.text(eur(d.pdrGesamt), pageW-margin, y, {align:'right'}); y+=5.5;
+  if(d.zSum){ doc.text('Zusatzleistungen', sumX, y); doc.text(eur(d.zSum), pageW-margin, y, {align:'right'}); y+=5.5; }
+  doc.setDrawColor(51); doc.setLineWidth(0.4);
+  doc.line(sumX, y-3.5, pageW-margin, y-3.5);
+  doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.text('Gesamtbetrag', sumX, y+1.5);
+  doc.text(eur(d.gesamt), pageW-margin, y+1.5, {align:'right'});
+  y += 11;
+
+  if(y > pageH-30){ doc.addPage(); y = margin; }
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(85);
+  const maxW = pageW-2*margin;
+  const disc1='Gem\u00e4\u00df \u00a7 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerregelung).';
+  const disc2='Es wird keine Haftung f\u00fcr Vorsch\u00e4den (z.B. Kratzer, Parksch\u00e4den), technische M\u00e4ngel und f\u00fcr die im Fahrzeug liegenden Gegenst\u00e4nde \u00fcbernommen. Bei der Reparatur k\u00f6nnen ggf. zus\u00e4tzliche Demontagearbeiten erfolgen. Wichtig: Bei schlechten Arbeitsbedingungen (verschmutzte, nasse Oberfl\u00e4chen sowie schlechte Lichtverh\u00e4ltnisse) kann eine Bewertungskorrektur erfolgen.';
+  doc.text(doc.splitTextToSize(disc1, maxW), margin, y); y+=5;
+  doc.text(doc.splitTextToSize(disc2, maxW), margin, y);
+
+  return doc.output('blob');
+}
+
+function shareDoc(){
+  const d=buildDoc(); if(!d)return;
+  loadJsPdfAutoTable(function(){
+    scanStatus('PDF wird erstellt\u2026');
+    (async function(){
+    try{
+      const blob = buildPdfBlob(d.data);
+      const file=new File([blob],d.name+'.pdf',{type:'application/pdf'});
+      const photoFiles=[];
+      ['marke','plate','vin'].forEach(function(k){ if(PHOTOS[k]) photoFiles.push(dataURLtoFile(PHOTOS[k], d.name+'_'+k+'.jpg')); });
+      GRID_ORDER.forEach(function(n){ if(PHOTOS[n]) photoFiles.push(dataURLtoFile(PHOTOS[n], d.name+'_Foto'+n+'.jpg')); });
+      const allFiles=[file].concat(photoFiles);
+      if(navigator.canShare && navigator.canShare({files:allFiles})){
+        await navigator.share({files:allFiles,title:'Kalkulation',text:'Kalkulation \u2013 lackschadenfreie Dellenreparatur'});
+        scanStatus('Geteilt \u2713 ('+allFiles.length+' Dateien)',2500);
+      }else if(navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({files:[file],title:'Kalkulation',text:'Kalkulation \u2013 lackschadenfreie Dellenreparatur'});
+        scanStatus('Geteilt (nur PDF \u2013 zu viele Fotos zum Teilen) \u2713',3500);
+      }else{
+        const u=URL.createObjectURL(blob);
+        const a=document.createElement('a');a.href=u;a.download=d.name+'.pdf';a.click();
+        URL.revokeObjectURL(u);
+        photoFiles.forEach(function(pf){
+          const pu=URL.createObjectURL(pf);
+          const pa=document.createElement('a');pa.href=pu;pa.download=pf.name;pa.click();
+          URL.revokeObjectURL(pu);
+        });
+        scanStatus('PDF + Fotos gespeichert \u2713',3000);
+      }
+    }catch(e){ scanStatus('PDF fehlgeschlagen',4000); }
+    })();
+  });
+}
+
+// ---- autosave ----
+function save(){
+  try{
+    const data={meta:{},panels:{},photos:{},rates:{}};
+    ['m_kunde','m_adresse','m_plz','m_make','m_model','m_plate','m_date','m_vin','m_farbe','m_km','m_erst','m_protokoll','m_rechnung','m_auftrag','m_sachb','m_rate'].forEach(id=>data.meta[id]=$('#'+id).value);
+    document.querySelectorAll('.rate').forEach(c=>data.rates[c.dataset.r]=c.checked);
+    GRID_ORDER.forEach(n=>{
+      data.panels[n]={
+        d:document.querySelector(`.dents[data-p="${n}"]`).value,
+        a:document.querySelector(`.size[data-p="${n}"]`).value,
+        alu:document.querySelector(`.alu[data-p="${n}"]`).checked,
+        kleb:document.querySelector(`.kleb[data-p="${n}"]`).checked,
+        ptp:document.querySelector(`.ptp[data-p="${n}"]`).checked
+      };
+      const hh=document.querySelector(`.hor[data-p="${n}"]`); if(hh)data.panels[n].hor=hh.checked;
+      const nn=document.querySelector(`.neu[data-p="${n}"]`); if(nn)data.panels[n].neu=nn.checked;
+    });
+    data.photos={...PHOTOS};   // panel photos + meta photos (marke, vin)
+    try{
+      localStorage.setItem('pdrcalc_beta',JSON.stringify(data));
+    }catch(e){
+      // storage full (usually too many/large photos) — retry WITHOUT photos so the numbers
+      // (dents, sizes, vehicle info) are never silently lost, and tell the user what happened
+      try{
+        localStorage.setItem('pdrcalc_beta',JSON.stringify({...data,photos:{}}));
+        scanStatus('⚠ Speicher voll — Zahlen gespeichert, aber Fotos NICHT. Alte Kalkulation zurücksetzen oder weniger Fotos.',9000);
+      }catch(e2){
+        scanStatus('⚠ Speichern fehlgeschlagen! Bitte jetzt "Kalkulation erstellen" nutzen, um nichts zu verlieren.',9000);
+      }
+    }
+  }catch(e){}
+}
+function load(){
+  try{
+    const data=JSON.parse(localStorage.getItem('pdrcalc_beta'));if(!data)return;
+    // one-time migration: a saved rate of exactly the OLD default (87) is almost certainly just
+    // an inherited default, not a deliberate choice — bump it to the new default (65) so the
+    // Kalkulation heading reflects it too, without silently overriding a rate someone did set on purpose
+    if(data.meta && data.meta.m_rate==='87') data.meta.m_rate='65';
+    Object.entries(data.meta||{}).forEach(([id,v])=>{if($('#'+id))$('#'+id).value=v;});
+    Object.entries(data.panels||{}).forEach(([n,v])=>{
+      const de=document.querySelector(`.dents[data-p="${n}"]`);
+      const ae=document.querySelector(`.size[data-p="${n}"]`);
+      const ce=document.querySelector(`.alu[data-p="${n}"]`);
+      const ke=document.querySelector(`.kleb[data-p="${n}"]`);
+      const pe=document.querySelector(`.ptp[data-p="${n}"]`);
+      if(de)de.value=v.d||'';if(ae)ae.value=v.a||'20';if(ce)ce.checked=!!v.alu;if(pe)pe.checked=!!v.ptp;
+      if(ke && !KLEBEN_ALWAYS.includes(Number(n)))ke.checked=!!v.kleb;   // Dachrahmen stay locked-on
+      const he=document.querySelector(`.hor[data-p="${n}"]`); if(he)he.checked=!!v.hor;
+      const ne=document.querySelector(`.neu[data-p="${n}"]`); if(ne)ne.checked=!!v.neu;
+    });
+    Object.entries(data.photos||{}).forEach(([n,src])=>{
+      PHOTOS[n]=src;
+      const b=document.getElementById('cambtn'+n);
+      if(b)b.classList.add('has');
+    });
+    Object.entries(data.rates||{}).forEach(([k,v])=>{
+      if(ALWAYS.includes(k))return;               // locked-on items stay ticked
+      const c=document.querySelector(`.rate[data-r="${k}"]`);if(c)c.checked=!!v;
+    });
+  }catch(e){}
+}
+function resetAll(){
+  if(!confirm('Clear all entries and photos?'))return;
+  localStorage.removeItem('pdrcalc_beta');location.reload();
+}
+
+document.addEventListener('input',calc);
+document.addEventListener('change',calc);
+
+// restore & persist the Anthropic API key (kept out of the main save blob)
+const _ak=document.getElementById('aiKey');
+if(_ak){ _ak.value=localStorage.getItem('anthropicKey')||''; _ak.addEventListener('input',()=>localStorage.setItem('anthropicKey',_ak.value)); }
+
+if(!$('#m_date').value)$('#m_date').valueAsDate=new Date();
+load();calc();
+
+// ---- update check: the Home-Screen icon has its own aggressive cache and no reload button,
+// so we fetch a fresh copy (cache:'no-store' bypasses that cache) and compare APP_VERSION.
+// If it's newer, show a banner; tapping it force-loads the new version via a cache-busting URL.
+const LIVE_URL='https://colignym.github.io/pdr-calc-beta/pdr-calc.html';
+function checkForUpdate(){
+  fetch(LIVE_URL+'?_c='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(t=>{
+    const m=t.match(/APP_VERSION\s*=\s*'([^']+)'/);
+    if(m && m[1] && m[1]!==APP_VERSION){
+      document.getElementById('updateBanner').classList.add('show');
+    }
+  }).catch(()=>{});
+}
+function applyUpdate(){
+  save();   // belt-and-braces: flush current dents/sizes/photos to localStorage before navigating
+  location.href = LIVE_URL + '?_r=' + Date.now();  // different URL -> bypasses the stale cache entirely (localStorage itself is untouched by this — same origin)
+}
+checkForUpdate();
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') checkForUpdate(); });
+window.addEventListener('pageshow',checkForUpdate);
+</script>
+</body>
+</html>
